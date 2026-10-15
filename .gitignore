@@ -1,0 +1,7 @@
+# Run logs and intermediate dumps written by the converter
+log/
+dump/
+
+# Python caches
+__pycache__/
+*.pyc
