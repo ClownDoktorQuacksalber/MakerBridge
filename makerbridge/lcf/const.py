@@ -116,7 +116,7 @@ CHIPSET_COLS = 30
 CHIPSET_ROWS = 16
 
 # Water and animated tiles, columns 0..5 rows 0..7 (layout as EasyRPG's
-# tilemap_layer.cpp reads it, and as every chipset in Renascor Adoria draws it):
+# tilemap_layer.cpp reads it, and as every chipset of the tested game draws it):
 #
 #   cols 0-2 rows 0-3   water A1 edge pieces, one column per animation frame
 #   cols 3-5 rows 0-3   water A2 edge pieces, one column per animation frame
