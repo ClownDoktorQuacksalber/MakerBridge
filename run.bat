@@ -1,11 +1,11 @@
 @echo off
 rem ---------------------------------------------------------------------------
-rem rm2k2mv - RPG Maker 2000 -> RPG Maker MV converter
+rem rm2k2mv - RPG Maker 2000/2003 -> RPG Maker MV/MZ converter
 rem
 rem   run.bat                 inspect the RM2k project (default command)
 rem   run.bat inspect         structural report + validation
 rem   run.bat dump            decode everything to intermediate JSON in dump\
-rem   run.bat convert         write the MV project
+rem   run.bat convert         write the MV/MZ project
 rem   run.bat convert "<src>" "<dst>"
 rem
 rem Every run writes a timestamped log to log\.
