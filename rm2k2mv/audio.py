@@ -15,6 +15,7 @@ import logging
 import os
 import shutil
 import subprocess
+import sys
 
 log = logging.getLogger(__name__)
 
@@ -28,6 +29,16 @@ MIN_AUDIO_BYTES = 256
 
 TOOL_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SOUNDFONT_EXT = (".sf2", ".sf3", ".dls")
+UNIX_SOUNDFONTS = (
+    "/usr/share/sounds/sf2/FluidR3_GM.sf2",
+    "/usr/share/sounds/sf2/default-GM.sf2",
+    "/usr/share/soundfonts/default.sf2",
+    "/usr/share/soundfonts/FluidR3_GM.sf2",
+    "/usr/share/sounds/sf3/default-GM.sf3",
+    "/usr/share/sounds/sf2/TimGM6mb.sf2",
+    "/opt/homebrew/share/soundfonts/default.sf2",
+    "/usr/local/share/soundfonts/default.sf2",
+)
 
 
 def find_fluidsynth(explicit: str | None = None) -> str | None:
@@ -54,9 +65,16 @@ def find_soundfont(explicit: str | None = None) -> str | None:
         for entry in sorted(os.listdir(tools)):
             if entry.lower().endswith(SOUNDFONT_EXT):
                 return os.path.join(tools, entry)
-    system_root = os.environ.get("SystemRoot", r"C:\Windows")
-    gm = os.path.join(system_root, "System32", "drivers", "gm.dls")
-    return gm if os.path.isfile(gm) else None
+    if sys.platform.startswith("win"):
+        system_root = os.environ.get("SystemRoot", r"C:\Windows")
+        gm = os.path.join(system_root, "System32", "drivers", "gm.dls")
+        return gm if os.path.isfile(gm) else None
+    # Linux and macOS have no gm.dls; the General MIDI banks the
+    # distributions ship (fluid-soundfont-gm, timgm6mb, ...) do the job.
+    for candidate in UNIX_SOUNDFONTS:
+        if os.path.isfile(candidate):
+            return candidate
+    return None
 
 
 def find_ffmpeg(explicit: str | None = None) -> str | None:
@@ -83,8 +101,10 @@ def transcode(target: str, log, ffmpeg: str | None = None,
               fluidsynth: str | None = None) -> int:
     exe = find_ffmpeg(ffmpeg)
     if not exe:
-        log.error("ffmpeg not found. Install it (winget install Gyan.FFmpeg) "
-                  "or pass --ffmpeg <path to ffmpeg.exe>")
+        hint = ("winget install Gyan.FFmpeg" if sys.platform.startswith("win")
+                else "brew install ffmpeg" if sys.platform == "darwin"
+                else "e.g. sudo apt install ffmpeg")
+        log.error("ffmpeg not found. Install it (%s) or pass --ffmpeg <path>", hint)
         return 1
     log.info("using %s", exe)
 

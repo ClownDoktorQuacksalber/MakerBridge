@@ -61,14 +61,36 @@ pictures wave and tint to how a battle counts its turns.
 - your own copy of **RPG Maker MV or MZ** — rm2k2mv takes the engine runtime
   from an MV/MZ project on your machine and contains none itself
 
+rm2k2mv runs on **Windows, Linux and macOS**. On Linux, install Tkinter for
+the window and FluidSynth plus a General MIDI soundfont for MIDI music, e.g.
+on Debian/Ubuntu:
+
+```
+sudo apt install python3-tk python3-pil ffmpeg fluidsynth fluid-soundfont-gm
+```
+
+The game it builds is a Windows `Game.exe`, as RPG Maker MV/MZ export it;
+on Linux it runs under Wine.
+
 ## Running it
 
-Double-click **`gui.bat`** for a window: pick the RM2k folder, pick where the
-MV/MZ project and the playable build should go, tick the steps, press
-Convert. The log scrolls along as it runs, and the two buttons next to it
-open the output folder or start the built game.
+Start the window with **`gui.bat`** (Windows) or **`./gui.sh`** (Linux,
+macOS):
 
-Or from a shell with `run.bat`:
+1. **Pick the game** — the folder with `RPG_RT.ldb`. The window shows right
+   away what it found: title, engine and version, number of maps.
+2. **Pick the target** — the MV/MZ project, and optionally a folder for the
+   playable build. The engine template (an MV or MZ project of yours) is
+   found by itself and shown with its engine.
+3. **Press Convert.** Each step gets a tick or a cross, the progress bar and
+   the timer show where it is, warnings and errors are coloured and counted,
+   and the whole run is also saved in `log\`. "Ausgabe öffnen" opens the
+   result, "Spiel starten" starts the built game.
+
+Text encoding, an extra RTP folder and a soundfont are under "Erweiterte
+Einstellungen"; the window remembers everything for next time.
+
+Or from a shell with `run.bat` (Windows) or `./run.sh` (Linux, macOS):
 
 ```
 run.bat inspect                 structural report over the RM2k project
@@ -166,7 +188,8 @@ end of its run, so nothing disappears silently.
 ## Layout
 
 ```
-run.bat, gui.bat      launchers; write log\<command>-<timestamp>.log
+run.bat, gui.bat      launchers (Windows); write log\<command>-<timestamp>.log
+run.sh, gui.sh        the same for Linux and macOS
 rm2k2mv\
   lcf\reader.py       compressed integers, chunks, arrays
   lcf\const.py        chunk ids, tile id decoding, chipset geometry
@@ -174,6 +197,7 @@ rm2k2mv\
   lcf\model.py        binary -> plain dicts
   project.py          load a whole RM2k project, engine version, RTP
   inspect.py          structural report
+  gui.py              the window (Tkinter)
   mv\database.py      Actors/Classes/Skills/Items/... json
   mv\tiles.py         chipset -> tileset sheets and flags
   mv\events.py        RM2k event commands -> MV/MZ command lists
