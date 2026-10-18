@@ -1,12 +1,20 @@
-# MakerBridge
+<p align="center">
+  <img src="docs/images/makerbridge-logo.jpg" alt="MakerBridge – an RPG Maker 2000/2003 character turned into an RPG Maker MZ one" width="420">
+</p>
 
-**RPG Maker 2000 / 2003 → RPG Maker MZ.
-Bring your old games to MZ — and keep them playing like the original.**
+<h1 align="center">MakerBridge</h1>
 
-[![Buy Me a Coffee](https://img.shields.io/badge/Buy%20me%20a%20coffee-support%20MakerBridge-FFDD00?style=for-the-badge&logo=buymeacoffee&logoColor=black)](https://buymeacoffee.com/clowndoktorquacksalber)
-[![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue?style=for-the-badge)](LICENSE)
+<p align="center">
+  <b>RPG Maker 2000 / 2003 → RPG Maker MZ</b><br>
+  Bring your old games to MZ — and keep them playing like the original.
+</p>
 
-Created by **Clown Doktor Quacksalber** (Resan Alkoyun).
+<p align="center">
+  <a href="https://buymeacoffee.com/clowndoktorquacksalber"><img src="https://img.shields.io/badge/Buy%20me%20a%20coffee-support%20MakerBridge-FFDD00?style=for-the-badge&logo=buymeacoffee&logoColor=black" alt="Buy Me a Coffee"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/License-GPLv3-blue?style=for-the-badge" alt="License: GPL v3"></a>
+</p>
+
+<p align="center">Created by <b>Clown Doktor Quacksalber</b> (Resan Alkoyun)</p>
 
 MakerBridge reads an RPG Maker 2000 or 2003 project — the binary `.ldb`,
 `.lmt` and `.lmu` files plus its graphics and music — and writes a complete
