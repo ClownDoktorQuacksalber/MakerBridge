@@ -72,37 +72,63 @@ welcome.
 - **Graphics and audio.** Everything scaled 3x with nearest-neighbour, XYZ
   images decoded, RTP files found and included, MIDI rendered with
   FluidSynth, everything else transcoded to Ogg.
-- **One click to a game.** `gui.bat` (or `./gui.sh`) converts, checks and
+- **One click to a game.** `MakerBridge.bat` (or `./MakerBridge.sh`) converts, checks and
   packages the result as a stand-alone `Game.exe`.
 
-## Requirements
+## Installation — three steps, no programming needed
 
-- Python 3.10 or newer and **Pillow** (`pip install Pillow`)
-- **ffmpeg** on the PATH (or `--ffmpeg`) for `transcode`
-- your own copy of **RPG Maker MZ** — MakerBridge takes the engine runtime
-  from an MZ project on your machine and contains none itself
+1. **Download** MakerBridge: on this page click the green **Code** button →
+   **Download ZIP**, and unpack the ZIP anywhere you like.
+2. **Start it**:
+   - **Windows:** double-click **`MakerBridge.bat`**.
+   - **Linux / macOS:** open a terminal in the folder and run **`./MakerBridge.sh`**.
+3. **First start only:** MakerBridge checks what it needs and offers to
+   install anything that is missing — just answer **J** (yes):
 
-MakerBridge runs on **Windows, Linux and macOS**. On Linux, install Tkinter for
-the window and FluidSynth plus a General MIDI soundfont for MIDI music, e.g.
-on Debian/Ubuntu:
+   | What | Why | Windows | Linux / macOS |
+   |---|---|---|---|
+   | Python 3.10+ | runs MakerBridge | installed via winget | via apt, dnf, pacman, zypper or Homebrew |
+   | Pillow | graphics | installed via pip | via the package manager |
+   | ffmpeg | converts the music | installed via winget | via the package manager |
+   | FluidSynth | plays MIDI music | already included | via the package manager |
 
-```
-sudo apt install python3-tk python3-pil ffmpeg fluidsynth fluid-soundfont-gm
-```
+   ffmpeg and FluidSynth are optional — without them everything works
+   except the music conversion. You can run **`MakerBridge.bat setup`** /
+   **`./MakerBridge.sh setup`** at any time to check or install again.
 
-The game it builds is a Windows `Game.exe`, as RPG Maker MV/MZ export it;
-on Linux it runs under Wine.
+   MakerBridge keeps its Python packages in its own environment, the
+   `.venv` folder next to it — your system's Python stays untouched, and
+   deleting the MakerBridge folder removes them again.
+
+**You also need your own copy of RPG Maker MZ**, with one MZ project on your
+computer (a new, empty one is fine). MakerBridge takes the engine files from
+it — it contains no RPG Maker files itself.
+
+The game MakerBridge builds is a Windows `Game.exe`, as RPG Maker MZ exports
+it; on Linux it runs under Wine.
+
+<details>
+<summary>Manual installation (for developers)</summary>
+
+- Python 3.10+ with Tkinter, and `pip install Pillow`
+- ffmpeg on the PATH (or `--ffmpeg <path>`)
+- for MIDI: FluidSynth and a General MIDI soundfont (`--soundfont <file>`);
+  on Windows the bundled FluidSynth and Windows' own `gm.dls` are used
+- Debian/Ubuntu in one line:
+  `sudo apt install python3-tk python3-pil ffmpeg fluidsynth fluid-soundfont-gm`
+
+</details>
 
 ## Running it
 
-Start the window with **`gui.bat`** (Windows) or **`./gui.sh`** (Linux,
-macOS):
+Start the window with **`MakerBridge.bat`** (Windows) or **`./MakerBridge.sh`**
+(Linux, macOS):
 
 1. **Pick the game** — the folder with `RPG_RT.ldb`. The window shows right
    away what it found: title, engine and version, number of maps.
-2. **Pick the target** — the MV/MZ project, and optionally a folder for the
-   playable build. The engine template (an MV or MZ project of yours) is
-   found by itself and shown with its engine.
+2. **Pick the target** — the MZ project, and optionally a folder for the
+   playable build. The engine template (an MZ project of yours) is found by
+   itself and shown with its engine.
 3. **Press Convert.** Each step gets a tick or a cross, the progress bar and
    the timer show where it is, warnings and errors are coloured and counted,
    and the whole run is also saved in `log\`. "Ausgabe öffnen" opens the
@@ -111,26 +137,28 @@ macOS):
 Text encoding, an extra RTP folder and a soundfont are under "Erweiterte
 Einstellungen"; the window remembers everything for next time.
 
-Or from a shell with `run.bat` (Windows) or `./run.sh` (Linux, macOS):
+Or use the command line: the same file with a command behind it,
+`MakerBridge.bat <command>` (Windows) or `./MakerBridge.sh <command>`
+(Linux, macOS):
 
 ```
-run.bat inspect                 structural report over the RM2k project
-run.bat dump                    decode everything to readable JSON in dump\
-run.bat convert                 write the MV/MZ project
-run.bat transcode               convert the audio to ogg (ffmpeg, FluidSynth)
-run.bat fixup                   blank missing sounds, stub missing images
-run.bat verify                  check that MV/MZ can actually load the project
-run.bat package                 wrap it in the NW.js runtime -> Game.exe
+MakerBridge.bat inspect                 structural report over the RM2k project
+MakerBridge.bat dump                    decode everything to readable JSON in dump\
+MakerBridge.bat convert                 write the MV/MZ project
+MakerBridge.bat transcode               convert the audio to ogg (ffmpeg, FluidSynth)
+MakerBridge.bat fixup                   blank missing sounds, stub missing images
+MakerBridge.bat verify                  check that MV/MZ can actually load the project
+MakerBridge.bat package                 wrap it in the NW.js runtime -> Game.exe
 ```
 
 The full chain from an RM2k project to something you can double-click:
 
 ```
-run.bat convert
-run.bat transcode
-run.bat fixup
-run.bat verify
-run.bat package
+MakerBridge.bat convert
+MakerBridge.bat transcode
+MakerBridge.bat fixup
+MakerBridge.bat verify
+MakerBridge.bat package
 ```
 
 `fixup` must come after `transcode`, because it decides which sounds exist by
@@ -140,13 +168,13 @@ looking at what is actually on disk. Every run writes a timestamped log to
 Useful options:
 
 ```
-run.bat convert "C:\path\to\rm2k game" "C:\path\to\output" --overwrite
-run.bat convert --template "C:\path\to\an MZ project"   engine runtime to use
-run.bat convert --rtp "C:\path\to\RTP"                  extra RTP folder
-run.bat convert --skip-assets                          only data\*.json
-run.bat convert --encoding cp932                       a Japanese game
-run.bat transcode --soundfont "C:\path\to\bank.sf2"    other MIDI sounds
-run.bat package --overwrite
+MakerBridge.bat convert "C:\path\to\rm2k game" "C:\path\to\output" --overwrite
+MakerBridge.bat convert --template "C:\path\to\an MZ project"   engine runtime to use
+MakerBridge.bat convert --rtp "C:\path\to\RTP"                  extra RTP folder
+MakerBridge.bat convert --skip-assets                          only data\*.json
+MakerBridge.bat convert --encoding cp932                       a Japanese game
+MakerBridge.bat transcode --soundfont "C:\path\to\bank.sf2"    other MIDI sounds
+MakerBridge.bat package --overwrite
 ```
 
 The RTP is also found through the registry and the `RPG2K_RTP_PATH`,
@@ -209,8 +237,9 @@ end of its run, so nothing disappears silently.
 ## Layout
 
 ```
-run.bat, gui.bat      launchers (Windows); write log\<command>-<timestamp>.log
-run.sh, gui.sh        the same for Linux and macOS
+MakerBridge.bat       start (Windows): window, "setup", or command line
+MakerBridge.sh        the same for Linux and macOS
+requirements.txt      the Python packages, installed into .venv\
 makerbridge\
   lcf\reader.py       compressed integers, chunks, arrays
   lcf\const.py        chunk ids, tile id decoding, chipset geometry

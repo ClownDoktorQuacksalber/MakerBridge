@@ -111,7 +111,7 @@ def cmd_convert(args, log) -> int:
 
 def cmd_verify(args, log) -> int:
     if not args.target:
-        log.error("no MV project named. Pass one: run.bat %s \"<folder>\"",
+        log.error("no MV project named. Pass one: MakerBridge.bat %s \"<folder>\"",
                   args.command)
         return 1
     from .verify import verify
@@ -120,7 +120,7 @@ def cmd_verify(args, log) -> int:
 
 def cmd_transcode(args, log) -> int:
     if not args.target:
-        log.error("no MV project named. Pass one: run.bat %s \"<folder>\"",
+        log.error("no MV project named. Pass one: MakerBridge.bat %s \"<folder>\"",
                   args.command)
         return 1
     from .audio import transcode
@@ -131,7 +131,7 @@ def cmd_transcode(args, log) -> int:
 
 def cmd_fixup(args, log) -> int:
     if not args.target:
-        log.error("no MV project named. Pass one: run.bat %s \"<folder>\"",
+        log.error("no MV project named. Pass one: MakerBridge.bat %s \"<folder>\"",
                   args.command)
         return 1
     from .fixup import fixup
@@ -141,7 +141,7 @@ def cmd_fixup(args, log) -> int:
 def cmd_package(args, log) -> int:
     if not args.source or not args.target:
         log.error("name the MV project and the output folder: "
-                  "run.bat package \"<mv project>\" \"<game folder>\"")
+                  "MakerBridge.bat package \"<mv project>\" \"<game folder>\"")
         return 1
     from .package import build
     return build(args.source, args.target, log, runtime=args.runtime,
@@ -178,12 +178,12 @@ def require_source(args, log) -> bool:
     candidates = discover_projects(args.tool_root)
     if not candidates:
         log.error("no RM2k project found next to the tool. Name one: "
-                  "run.bat %s \"<folder with RPG_RT.ldb>\"", args.command)
+                  "MakerBridge.bat %s \"<folder with RPG_RT.ldb>\"", args.command)
     else:
         log.error("several RM2k projects are next to the tool, so none is "
                   "assumed. Name the one you mean:")
         for candidate in candidates:
-            log.error("    run.bat %s \"%s\"", args.command, candidate)
+            log.error("    MakerBridge.bat %s \"%s\"", args.command, candidate)
     return False
 
 
