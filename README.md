@@ -83,7 +83,7 @@ welcome.
    - **Windows:** double-click **`MakerBridge.bat`**.
    - **Linux / macOS:** open a terminal in the folder and run **`./MakerBridge.sh`**.
 3. **First start only:** MakerBridge checks what it needs and offers to
-   install anything that is missing — just answer **J** (yes):
+   install anything that is missing — just answer **Y** (yes):
 
    | What | Why | Windows | Linux / macOS |
    |---|---|---|---|
@@ -97,7 +97,7 @@ welcome.
    everything works except the music conversion. On Fedora, ffmpeg comes
    from the RPM Fusion repository. Homebrew's FluidSynth comes without a
    soundfont: on macOS pick a General MIDI `.sf2` file (FluidR3 GM or
-   GeneralUser GS, both free) under "Erweiterte Einstellungen" → Soundfont. You can run **`MakerBridge.bat setup`** /
+   GeneralUser GS, both free) under "Advanced settings" → Soundfont. You can run **`MakerBridge.bat setup`** /
    **`./MakerBridge.sh setup`** at any time to check or install again.
 
    MakerBridge keeps its Python packages in its own environment, the
@@ -138,11 +138,12 @@ Start the window with **`MakerBridge.bat`** (Windows) or **`./MakerBridge.sh`**
    is built, so the window warns before converting.
 3. **Press Convert.** Each step gets a tick or a cross, the progress bar and
    the timer show where it is, warnings and errors are coloured and counted,
-   and the whole run is also saved in `log\`. "Ausgabe öffnen" opens the
-   result, "Spiel starten" starts the built game.
+   and the whole run is also saved in `log\`. "Open output" opens the
+   result, "Start game" starts the built game.
 
-Text encoding, an extra RTP folder and a soundfont are under "Erweiterte
-Einstellungen"; the window remembers everything for next time.
+Text encoding, an extra RTP folder and a soundfont are under "Advanced
+settings"; the window remembers everything for next time. The flags at the
+top switch the window between English, German, Spanish and Japanese.
 
 Or use the command line: the same file with a command behind it,
 `MakerBridge.bat <command>` (Windows) or `./MakerBridge.sh <command>`
@@ -324,7 +325,7 @@ The RPG Maker FAQ allows the default materials of one RPG Maker in another,
 as long as you own both. RTP graphics and sounds of RPG Maker 2000/2003 in the
 converted game therefore need a licence for that maker and for MZ (or MV).
 
-"Spiel bauen" assembles a `Game.exe` from your own MZ installation for
+"Build game" assembles a `Game.exe` from your own MZ installation for
 testing. To release the game, open the converted project in RPG Maker MZ and
 use File → Deployment there: the MZ licence covers games produced with the
 editor, and only the editor can encrypt the files and leave unused ones out.

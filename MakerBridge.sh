@@ -96,15 +96,15 @@ install_system() {
             [ -n "$need_synth" ] && add fluid-synth ;;
     esac
     echo
-    echo "MakerBridge - Einrichtung"
-    echo "========================="
-    [ -n "$need_python" ] && echo "  fehlt: Python 3.10 oder neuer (Pflicht)"
-    [ -n "$need_venv" ] && [ -z "$need_python" ] && echo "  fehlt: Python-Umgebungen (venv) (Pflicht)"
-    [ -n "$need_tk" ] && [ -z "$need_python" ] && echo "  fehlt: Tkinter, fuer das Fenster (Pflicht)"
-    [ -n "$need_ffmpeg" ] && echo "  fehlt: ffmpeg, um die Musik umzuwandeln (empfohlen)"
-    [ -n "$need_synth" ] && echo "  fehlt: FluidSynth und eine Klangbank, fuer MIDI-Musik (empfohlen)"
+    echo "MakerBridge - setup"
+    echo "==================="
+    [ -n "$need_python" ] && echo "  missing: Python 3.10 or newer (required)"
+    [ -n "$need_venv" ] && [ -z "$need_python" ] && echo "  missing: Python environments (venv) (required)"
+    [ -n "$need_tk" ] && [ -z "$need_python" ] && echo "  missing: Tkinter, for the window (required)"
+    [ -n "$need_ffmpeg" ] && echo "  missing: ffmpeg, to convert the music (recommended)"
+    [ -n "$need_synth" ] && echo "  missing: FluidSynth and a soundfont, for MIDI music (recommended)"
     [ "$manager" = "dnf" ] && [ -n "$need_ffmpeg" ] &&
-        echo "  Hinweis: ffmpeg kommt fuer Fedora aus der Paketquelle RPM Fusion."
+        echo "  Note: on Fedora, ffmpeg comes from the RPM Fusion repository."
     echo
     case $manager in
         brew) command="brew install$packages" ;;
@@ -115,19 +115,19 @@ install_system() {
         *) command= ;;
     esac
     if [ -z "$command" ] || [ -z "$packages" ]; then
-        echo "Bitte die fehlenden Teile mit dem Paketmanager deines Systems installieren."
+        echo "Please install the missing parts with your system's package manager."
         [ -z "$required" ]
         return
     fi
-    echo "Installieren mit:"
+    echo "Install with:"
     echo "  $command"
-    printf "Jetzt ausfuehren? [J/n] "
+    printf "Run it now? [Y/n] "
     read -r answer
     case $answer in
-        n|N|nein|Nein)
+        n|N|no|No|nein|Nein)
             if [ -z "$required" ]; then
                 : > log/no-optional
-                echo "Ok - mit ./MakerBridge.sh setup kannst du es spaeter nachholen."
+                echo "Ok - you can catch up on it later with ./MakerBridge.sh setup."
                 return 0
             fi
             return 1 ;;
@@ -137,34 +137,34 @@ install_system() {
 
 setup() {
     say ""
-    say "MakerBridge - Einrichtung"
-    say "========================="
+    say "MakerBridge - setup"
+    say "==================="
     # A broken environment (its Python is gone) is made again.
     if [ -x "$VPY" ] && ! "$VPY" -c 'import sys' 2>/dev/null; then
         rm -rf "$VENV"
     fi
     system_packages
     install_system || {
-        echo "MakerBridge kann noch nicht starten: Python 3.10+ mit venv und Tkinter fehlt."
+        echo "MakerBridge cannot start yet: Python 3.10+ with venv and Tkinter is missing."
         exit 1
     }
     find_python
     if [ ! -x "$VPY" ]; then
-        echo "Richte MakerBridge ein (eigene Python-Umgebung in .venv) ..."
-        "$PY" -m venv "$VENV" || { echo "Die Python-Umgebung konnte nicht angelegt werden."; exit 1; }
+        echo "Setting up MakerBridge (its own Python environment in .venv) ..."
+        "$PY" -m venv "$VENV" || { echo "The Python environment could not be created."; exit 1; }
     fi
     if ! "$VPY" -c 'import tkinter' 2>/dev/null; then
-        echo "Tkinter fehlt noch - bitte ./MakerBridge.sh setup ausfuehren."
+        echo "Tkinter is still missing - please run ./MakerBridge.sh setup."
         exit 1
     fi
     if ! "$VPY" -c 'import PIL' 2>/dev/null; then
-        echo "Installiere Pillow (Bildbearbeitung) in die MakerBridge-Umgebung ..."
+        echo "Installing Pillow (image processing) into the MakerBridge environment ..."
         "$VPY" -m pip install --disable-pip-version-check --quiet -r requirements.txt || {
-            echo "Pillow konnte nicht installiert werden. Pruefe die Internetverbindung."
+            echo "Pillow could not be installed. Check your internet connection."
             exit 1
         }
     fi
-    say "[ok] alles bereit ($VENV)"
+    say "[ok] all set ($VENV)"
 }
 
 setup
