@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="docs/images/makerbridge-logo.jpg" alt="MakerBridge – an RPG Maker 2000/2003 character turned into an RPG Maker MZ one" width="420">
+  <img src="docs/images/makerbridge-logo.jpg" alt="MakerBridge – an RPG Maker 2000/2003 character turned into an RPG Maker MZ one" width="560">
 </p>
 
 <h1 align="center">MakerBridge</h1>
