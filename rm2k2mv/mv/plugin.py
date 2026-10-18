@@ -2742,13 +2742,26 @@ TEMPLATE = """//================================================================
     // A normal attack hits as often as the weapon says for this hero
     // (RM2003: "attacks twice" times the hero's own number of attacks); a
     // combo multiplies that (EasyRPG Algo::GetNumberOfAttacks, combos).
+    // RM2003 heroes with two weapons strike with each in turn, so their
+    // hits add up (EasyRPG Normal::Init, Style_MultiHit); RM2000 takes the
+    // better weapon's.
+    function rm2kOneWeaponHits(actor, weapon) {{
+        var own = weapon.rm2kHits && weapon.rm2kHits[actor.actorId()];
+        if (own) {{ return own; }}
+        return weapon.traits.some(function(t) {{
+            return t.code === Game_BattlerBase.TRAIT_ATTACK_TIMES && t.value > 0;
+        }}) ? 2 : 1;
+    }}
+
     function rm2kWeaponHits(actor) {{
-        var hits = 0;
-        actor.weapons().forEach(function(weapon) {{
-            var own = weapon && weapon.rm2kHits && weapon.rm2kHits[actor.actorId()];
-            if (own) {{ hits = Math.max(hits, own); }}
-        }});
-        return hits;
+        var weapons = actor.weapons().filter(function(weapon) {{ return !!weapon; }});
+        var hits = weapons.map(function(weapon) {{ return rm2kOneWeaponHits(actor, weapon); }});
+        if (RM2K.rm2k3 && hits.length > 1) {{
+            return hits.reduce(function(a, b) {{ return a + b; }}, 0);
+        }}
+        return weapons.some(function(weapon) {{
+            return weapon.rm2kHits && weapon.rm2kHits[actor.actorId()];
+        }}) ? Math.max.apply(null, hits) : 0;
     }}
 
     var _numRepeats = Game_Action.prototype.numRepeats;
@@ -2763,6 +2776,69 @@ TEMPLATE = """//================================================================
             return combo.times * (this.isAttack() ? repeats : 1);
         }}
         return repeats;
+    }};
+
+    // RM2k plays an action's animation once per hit, each followed by its
+    // damage.  MV starts the animation for every entry of the repeated
+    // target list at once and then deals all the hits in a row, so the
+    // animation is shown once per target here and again before each
+    // further hit on it.  RM2003 heroes with two weapons strike with the
+    // first weapon's hits, then the second's, each with its own animation
+    // (MV plays both at once, the second mirrored).
+    function rm2kHitAnimation(subject, action, hit) {{
+        var item = action.item();
+        if (!item || item.animationId >= 0) {{ return item ? item.animationId : 0; }}
+        if (!subject.isActor()) {{ return 0; }}
+        var weapons = subject.weapons().filter(function(weapon) {{ return !!weapon; }});
+        if (RM2K.rm2k3 && weapons.length > 1) {{
+            var first = rm2kOneWeaponHits(subject, weapons[0]);
+            var second = rm2kOneWeaponHits(subject, weapons[1]);
+            if (hit >= Math.round(action.numRepeats() * first / (first + second))) {{
+                return subject.attackAnimationId2();
+            }}
+        }}
+        return subject.attackAnimationId1();
+    }}
+
+    var _logStartActionHits = Window_BattleLog.prototype.startAction;
+    Window_BattleLog.prototype.startAction = function(subject, action, targets) {{
+        var once = targets.filter(function(target, i) {{ return targets.indexOf(target) === i; }});
+        _logStartActionHits.call(this, subject, action, once);
+    }};
+
+    var _showActorAttackAnimation = Window_BattleLog.prototype.showActorAttackAnimation;
+    Window_BattleLog.prototype.showActorAttackAnimation = function(subject, targets) {{
+        if (!RM2K.rm2k3) {{ return _showActorAttackAnimation.apply(this, arguments); }}
+        this.showNormalAnimation(targets, subject.attackAnimationId1(), false);
+    }};
+
+    var _startActionHits = BattleManager.startAction;
+    BattleManager.startAction = function() {{
+        _startActionHits.apply(this, arguments);
+        this._rm2kHits = {{action: this._action, done: [], shown: false}};
+    }};
+
+    // The next hit waits until the previous one's messages and damage are
+    // through (BattleManager is busy until then); a repeated hit first
+    // plays its animation, which keeps it busy until that has finished.
+    var _updateActionHits = BattleManager.updateAction;
+    BattleManager.updateAction = function() {{
+        var target = this._targets[0];
+        var hits = this._rm2kHits;
+        if (target && hits && hits.action === this._action) {{
+            var hit = hits.done.filter(function(t) {{ return t === target; }}).length;
+            if (hit > 0 && !hits.shown && target.isAlive()) {{
+                hits.shown = true;
+                var id = rm2kHitAnimation(this._subject, this._action, hit);
+                if (id > 0) {{
+                    this._logWindow.showNormalAnimation([target], id, false);
+                    return;
+                }}
+            }}
+            hits.shown = false;
+            hits.done.push(target);
+        }}
+        _updateActionHits.apply(this, arguments);
     }};
 
     //-----------------------------------------------------------------------
