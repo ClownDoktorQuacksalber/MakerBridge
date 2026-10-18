@@ -34,7 +34,7 @@ STEPS = [
     ("transcode", "Audio umwandeln", "MIDI, WAV und MP3 nach OGG (braucht ffmpeg)", True),
     ("fixup", "Fehlende Dateien abfangen", "fehlende Sounds leeren, fehlende Bilder ersetzen", True),
     ("verify", "Prüfen", "kontrolliert, ob MV/MZ das Projekt laden kann", True),
-    ("package", "Spiel bauen", "spielbare Version mit Game.exe", True),
+    ("package", "Spiel bauen", "Game.exe zum Testen (veröffentlichen im MZ-Editor)", True),
 ]
 
 ENCODINGS = [
@@ -157,14 +157,28 @@ def missing_tools() -> str:
     return " und ".join(missing)
 
 
-def describe_template(path: str) -> str:
+TEMPLATE_HELP = ("Lege im RPG Maker MZ ein neues, leeres Projekt an und wähle hier "
+                 "dessen Ordner. Daraus kommt die Engine (js/, index.html), ohne die "
+                 "das Projekt nicht startet und keine Game.exe gebaut wird.")
+
+
+def describe_template(path: str) -> tuple[str, bool]:
+    """The line under the template field, and whether the template is usable."""
     from .mv import engine as engines
     if not path:
-        return "keine gefunden – bitte ein MZ-Projekt wählen"
+        return "⚠  keine Vorlage gefunden. " + TEMPLATE_HELP, False
     found = engines.detect(path) if os.path.isdir(path) else None
     if not found:
-        return "kein MV/MZ-Projekt"
-    return found.label if found.key == "mz" else found.label + " (experimentell, ungetestet)"
+        return "⚠  kein MV/MZ-Projekt (js/rmmz_core.js fehlt). " + TEMPLATE_HELP, False
+    if found.key != "mz":
+        return f"✓  {found.label} (experimentell, ungetestet)", True
+    return f"✓  {found.label} · ein frisches, leeres MZ-Projekt ist ideal", True
+
+
+def runtime_missing() -> bool:
+    """Whether „Spiel bauen“ will fail for lack of the MZ editor's NW.js."""
+    from .mv import engine as engines
+    return engines.find_runtime(engines.MZ) is None
 
 
 # -- logging into the window -------------------------------------------------
@@ -365,6 +379,7 @@ class App(tk.Frame):
                        "hier landet die spielbare Version (optional)")
         self.template_info = self._path_row(form, "Engine-Vorlage", self.template,
                                             self._pick_template)
+        self.template_info.config(wraplength=360)
 
         # 3  steps and options
         steps = self._card(body, "Schritte", "3")
@@ -613,7 +628,8 @@ class App(tk.Frame):
                      f"{info['events']} Common Events")
 
     def _refresh_template(self) -> None:
-        self.template_info.config(text=describe_template(self.template.get().strip()))
+        text, ok = describe_template(self.template.get().strip())
+        self.template_info.config(text=text, fg=MUTED if ok else WARN)
 
     # -- running -------------------------------------------------------------
     def _start(self) -> None:
@@ -631,6 +647,8 @@ class App(tk.Frame):
         if not any(var.get() for var in self.steps.values()):
             messagebox.showinfo("Nichts zu tun", "Bitte mindestens einen Schritt auswählen.")
             return
+        if not self._preflight():
+            return
         self._remember()
         self.log_lines.clear()
         self.counts = {"warn": 0, "err": 0}
@@ -643,6 +661,26 @@ class App(tk.Frame):
         self.started_at = time.time()
         self.worker = threading.Thread(target=self._run, daemon=True)
         self.worker.start()
+
+    def _preflight(self) -> bool:
+        """Warn about what will leave the result unplayable; the user may go on."""
+        problems = []
+        if self.steps["convert"].get():
+            _, ok = describe_template(self.template.get().strip())
+            if not ok:
+                problems.append("Keine gültige Engine-Vorlage.\n" + TEMPLATE_HELP)
+        if (self.steps["package"].get() and self.game_dir.get().strip()
+                and runtime_missing()):
+            problems.append("RPG Maker MZ wurde nicht gefunden (Ordner nwjs-win der "
+                            "Installation). Ohne ihn kann „Spiel bauen“ keine "
+                            "Game.exe erzeugen.")
+        if not problems:
+            return True
+        return messagebox.askyesno(
+            "Voraussetzung fehlt",
+            "\n\n".join(problems) + "\n\nTrotzdem fortfahren? Das Projekt enthält "
+            "dann nur data/ und img/ und lässt sich weder starten noch als Spiel bauen.",
+            icon="warning", parent=self.master)
 
     def _remember(self) -> None:
         save_settings({
@@ -675,7 +713,7 @@ class App(tk.Frame):
         target = self.target.get().strip()
         failed = False
         done = 0
-        for name, label, _, _ in STEPS:
+        for index, (name, label, _, _) in enumerate(STEPS):
             if not self.steps[name].get():
                 continue
             self.messages.put(("step", name, "run", label, done))
@@ -689,6 +727,11 @@ class App(tk.Frame):
             if not ok:
                 failed = True
                 if name in ("convert", "verify"):
+                    rest = [later for n, later, _, _ in STEPS[index + 1:]
+                            if self.steps[n].get()]
+                    if rest:
+                        log.warning("„%s“ fehlgeschlagen, daher übersprungen: %s",
+                                    label, ", ".join(rest))
                     break                                   # nothing sensible follows
         root.removeHandler(handler)
         if file_handler:

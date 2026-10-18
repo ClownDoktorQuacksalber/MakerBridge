@@ -61,6 +61,7 @@ FluidSynth.
 
 MakerBridge does not contain, and does not distribute, any file of RPG Maker
 2000, RPG Maker 2003, RPG Maker MV or RPG Maker MZ: no RPG_RT, no RTP, no MV/MZ
-core scripts or NW.js runtime. The MV/MZ runtime of a converted game is
-copied from an MV/MZ project the user provides. Pillow, ffmpeg and Python are
+core scripts or NW.js runtime. The MV/MZ core scripts of a converted game
+are copied from an MV/MZ project the user provides, and the NW.js runtime of
+a built game from the user's own MV/MZ installation. Pillow, ffmpeg and Python are
 installed by the user and are not part of this repository.

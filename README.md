@@ -88,12 +88,16 @@ welcome.
    | What | Why | Windows | Linux / macOS |
    |---|---|---|---|
    | Python 3.10+ | runs MakerBridge | installed via winget | via apt, dnf, pacman, zypper or Homebrew |
-   | Pillow | graphics | installed via pip | via the package manager |
+   | Pillow | graphics | installed via pip | installed via pip |
    | ffmpeg | converts the music | installed via winget | via the package manager |
-   | FluidSynth | plays MIDI music | already included | via the package manager |
+   | FluidSynth | renders MIDI music | already included | via the package manager |
+   | Soundfont | instruments for MIDI | Windows' own `gm.dls` | FluidR3 GM, via the package manager |
 
-   ffmpeg and FluidSynth are optional — without them everything works
-   except the music conversion. You can run **`MakerBridge.bat setup`** /
+   ffmpeg, FluidSynth and the soundfont are optional — without them
+   everything works except the music conversion. On Fedora, ffmpeg comes
+   from the RPM Fusion repository. Homebrew's FluidSynth comes without a
+   soundfont: on macOS pick a General MIDI `.sf2` file (FluidR3 GM or
+   GeneralUser GS, both free) under "Erweiterte Einstellungen" → Soundfont. You can run **`MakerBridge.bat setup`** /
    **`./MakerBridge.sh setup`** at any time to check or install again.
 
    MakerBridge keeps its Python packages in its own environment, the
@@ -127,8 +131,11 @@ Start the window with **`MakerBridge.bat`** (Windows) or **`./MakerBridge.sh`**
 1. **Pick the game** — the folder with `RPG_RT.ldb`. The window shows right
    away what it found: title, engine and version, number of maps.
 2. **Pick the target** — the MZ project, and optionally a folder for the
-   playable build. The engine template (an MZ project of yours) is found by
-   itself and shown with its engine.
+   playable build. The engine template is where the converted project gets
+   its engine from (`js/`, `index.html`): create a fresh, empty project in
+   RPG Maker MZ and pick its folder. One lying next to MakerBridge is found
+   by itself. Without a template the project cannot start and no `Game.exe`
+   is built, so the window warns before converting.
 3. **Press Convert.** Each step gets a tick or a cross, the progress bar and
    the timer show where it is, warnings and errors are coloured and counted,
    and the whole run is also saved in `log\`. "Ausgabe öffnen" opens the
@@ -312,3 +319,12 @@ story and code of a game belong to their authors. Convert and publish only
 games you made yourself or have permission to use, and check the licenses of
 any RTP or third-party resources the game contains before you release the
 converted version.
+
+The RPG Maker FAQ allows the default materials of one RPG Maker in another,
+as long as you own both. RTP graphics and sounds of RPG Maker 2000/2003 in the
+converted game therefore need a licence for that maker and for MZ (or MV).
+
+"Spiel bauen" assembles a `Game.exe` from your own MZ installation for
+testing. To release the game, open the converted project in RPG Maker MZ and
+use File → Deployment there: the MZ licence covers games produced with the
+editor, and only the editor can encrypt the files and leave unused ones out.
