@@ -152,7 +152,7 @@ def transcode(target: str, log, ffmpeg: str | None = None,
                 failed += 1
                 continue
             converted += 1
-            log.debug("%s/%s -> %s.ogg", folder, entry, stem)
+            log.info("  %s/%s -> %s.ogg", folder, entry, stem)
             if not keep_sources:
                 os.remove(source)
         remaining = [f for f in os.listdir(directory)
@@ -168,8 +168,12 @@ def transcode(target: str, log, ffmpeg: str | None = None,
 
 
 def _run(exe: str, args: list[str], folder: str, entry: str, log) -> bool:
+    # Without this, a GUI run (pythonw, no console) gets a fresh console
+    # window for every fluidsynth/ffmpeg call on Windows.
+    flags = getattr(subprocess, "CREATE_NO_WINDOW", 0)
     result = subprocess.run([exe] + args, capture_output=True, text=True,
-                            errors="replace")
+                            errors="replace", stdin=subprocess.DEVNULL,
+                            creationflags=flags)
     if result.returncode != 0:
         tail = (result.stderr or "").strip().splitlines()
         log.error("%s/%s failed: %s", folder, entry, tail[-1] if tail else "?")

@@ -1,4 +1,4 @@
-These are unmodified third-party binaries, used by "run.bat transcode" to
+These are unmodified third-party binaries, used by "MakerBridge.bat transcode" to
 render MIDI music:
 
   fluidsynth.exe, libfluidsynth-3.dll   FluidSynth 2.6.1     LGPL-2.1

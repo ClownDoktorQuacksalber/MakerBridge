@@ -142,8 +142,9 @@ def find_runtime(engine: Engine, explicit: str | None = None) -> str | None:
 LAUNCHERS = ("game.exe", "nw.exe")
 
 # Developer tools that sit in the runtime folder but have no business in a
-# finished build.
-RUNTIME_SKIP = {"chromedriver.exe", "nwjc.exe", "credits.html", "payload.exe",
+# finished build.  credits.html stays: it carries the license notices of
+# NW.js, Chromium and ffmpeg that a build has to ship.
+RUNTIME_SKIP = {"chromedriver.exe", "nwjc.exe", "payload.exe",
                 "notification_helper.exe"}
 
 
