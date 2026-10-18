@@ -196,9 +196,9 @@ def build_parser(tool_root: str) -> argparse.ArgumentParser:
     default_game = (default_source.rstrip("\\/") + "_Game"
                     if default_source else None)
     p = argparse.ArgumentParser(
-        prog="rm2k2mv",
-        description="Convert an RPG Maker 2000 project (liblcf format) to "
-                    "RPG Maker MV JSON.")
+        prog="makerbridge",
+        description="MakerBridge: convert an RPG Maker 2000/2003 game to an RPG "
+                    "Maker MZ project (2003 tested; 2000 and MV experimental).")
     p.add_argument("--encoding", default=project.DEFAULT_ENCODING,
                    help="text encoding of the RM2k project (default: cp1252)")
     p.add_argument("-v", "--verbose", action="store_true")
@@ -280,9 +280,9 @@ def main(argv: list[str] | None = None) -> int:
     log_path = _setup_logging(tool_root, args.command, args.verbose)
     counter = _Counter()
     logging.getLogger().addHandler(counter)
-    log = logging.getLogger("rm2k2mv")
+    log = logging.getLogger("makerbridge")
 
-    log.info("rm2k2mv %s", args.command)
+    log.info("MakerBridge %s", args.command)
     log.info("log file: %s", log_path)
     log.info("source:   %s", getattr(args, "source", "-"))
     if getattr(args, "target", None):

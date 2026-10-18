@@ -3,7 +3,7 @@
 The result is deliberately close to the on-disk structure: field names from
 ``schema``, defaults left out (absent chunk == RM2k default), and anything the
 schema does not know kept under ``_unknown`` as hex.  Conversion to RPG Maker
-MV happens a layer up, in :mod:`rm2k2mv.mv`.
+MV happens a layer up, in :mod:`makerbridge.mv`.
 """
 
 from __future__ import annotations
