@@ -144,7 +144,7 @@ pieces as its quadrants, and rows 1..3 are the 3x3 nine-slice.
 ### Water ids and animation
 
 Taken from EasyRPG (`TilemapLayer::GenerateAutotileAB`) and checked visually
-on Renascor Adoria's world map and forest chipsets (shores, inner corners and
+on the tested game's world map and forest chipsets (shores, inner corners and
 shallow/deep borders all join without seams). A water value is
 `kind*1000 + ocean*50 + edge`:
 
