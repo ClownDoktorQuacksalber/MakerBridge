@@ -1059,8 +1059,11 @@ def _guard_state(index: int) -> dict:
 
 # RM2k plays animations on a 320x240 screen with 96px cells; the sheets are
 # doubled to MV's 192px cells, so each cell's zoom makes up the remaining
-# screen-size difference and its offset is scaled to MV's screen.
-ANIM_SCREEN_X, ANIM_SCREEN_Y = 816 / 320, 624 / 240
+# screen-size difference.  A cell has one zoom for both axes, so its offset
+# must be scaled by that same factor on both axes too: MV's taller screen
+# (624/240 = 2.6 against 816/320 = 2.55) would otherwise open a gap of about
+# two RM2k pixels between cells stacked on top of each other.
+ANIM_SCREEN_X = ANIM_SCREEN_Y = 816 / 320
 ANIM_CELL_FACTOR = ANIM_SCREEN_X / 2
 ANIM_SCOPE_SCREEN = 1
 MV_POSITION_SCREEN = 3
