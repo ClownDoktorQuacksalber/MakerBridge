@@ -219,6 +219,7 @@ class App(tk.Frame):
         self.encoding = tk.StringVar(value=saved.get("encoding", project.DEFAULT_ENCODING))
         self.rtp = tk.StringVar(value=saved.get("rtp", ""))
         self.soundfont = tk.StringVar(value=saved.get("soundfont", ""))
+        self.support_hidden = bool(saved.get("support_hidden", False))
         self.only_problems = tk.BooleanVar(value=False)
         self.show_advanced = tk.BooleanVar(value=False)
         saved_steps = saved.get("steps") or {}
@@ -689,6 +690,7 @@ class App(tk.Frame):
             "encoding": self.encoding.get(), "rtp": self.rtp.get(),
             "soundfont": self.soundfont.get(),
             "steps": {name: var.get() for name, var in self.steps.items()},
+            "support_hidden": self.support_hidden,
         })
 
     def _run(self) -> None:
@@ -835,6 +837,49 @@ class App(tk.Frame):
             self.status.config(text=f"✓  Fertig in {self._elapsed()} · {counts}",
                                fg=WARN if warn else OK)
         self.summary.config(text=counts, fg=ERR if err else WARN if warn else OK)
+        if not failed and self.steps["convert"].get() and not self.support_hidden:
+            self.after(600, self._ask_support)
+
+    def _ask_support(self) -> None:
+        """Right after a game came through is when people are glad to give."""
+        dialog = tk.Toplevel(self.master, bg=CARD, padx=24, pady=20)
+        dialog.title("Konvertierung abgeschlossen")
+        dialog.resizable(False, False)
+        dialog.transient(self.master)
+        tk.Label(dialog, text="☕  Dein Spiel ist jetzt ein MZ-Projekt!", bg=CARD, fg=TEXT,
+                 font=self.f_head).pack(anchor="w")
+        tk.Label(dialog, bg=CARD, fg=MUTED, font=self.f_body, justify="left",
+                 wraplength=470,
+                 text="MakerBridge ist kostenlos und Open Source. "
+                      "Wenn es dir geholfen hat, freue ich mich über einen Kaffee – "
+                      "jede Spende fließt in weitere Funktionen und noch mehr "
+                      "Spiele, die sauber konvertieren."
+                 ).pack(anchor="w", pady=(8, 16))
+        buttons = tk.Frame(dialog, bg=CARD)
+        buttons.pack(fill="x")
+
+        def close(hide: bool = False, donate: bool = False) -> None:
+            if donate:
+                webbrowser.open(SUPPORT_URL)
+            if hide:
+                self.support_hidden = True
+                self._remember()
+            dialog.destroy()
+
+        ttk.Button(buttons, text="☕  Kaffee spendieren", style="Coffee.TButton",
+                   command=lambda: close(donate=True)).pack(side="left")
+        ttk.Button(buttons, text="Später", style="Card.TButton",
+                   command=close).pack(side="left", padx=(8, 0))
+        ttk.Button(buttons, text="Nicht mehr anzeigen", style="Card.TButton",
+                   command=lambda: close(hide=True)).pack(side="right")
+        dialog.protocol("WM_DELETE_WINDOW", close)
+        dialog.bind("<Escape>", lambda _e: close())
+        dialog.update_idletasks()
+        x = self.master.winfo_rootx() + (self.master.winfo_width() - dialog.winfo_width()) // 2
+        y = self.master.winfo_rooty() + (self.master.winfo_height() - dialog.winfo_height()) // 3
+        dialog.geometry(f"+{max(x, 0)}+{max(y, 0)}")
+        dialog.grab_set()
+        dialog.focus_set()
 
     def _close(self) -> None:
         if self.worker and self.worker.is_alive():
