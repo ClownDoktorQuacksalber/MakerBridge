@@ -23,30 +23,17 @@ import tkinter as tk
 import webbrowser
 from tkinter import filedialog, font as tkfont, messagebox, ttk
 
-from . import project
+from . import i18n, project
 from .convert import convert_project, find_template
+from .i18n import t
 
 SUPPORT_URL = "https://buymeacoffee.com/clowndoktorquacksalber"
 AUTHOR = "Clown Doktor Quacksalber"
 
-STEPS = [
-    ("convert", "Konvertieren", "Datenbank, Maps, Events, Tilesets und Grafiken", True),
-    ("transcode", "Audio umwandeln", "MIDI, WAV und MP3 nach OGG (braucht ffmpeg)", True),
-    ("fixup", "Fehlende Dateien abfangen", "fehlende Sounds leeren, fehlende Bilder ersetzen", True),
-    ("verify", "Prüfen", "kontrolliert, ob MV/MZ das Projekt laden kann", True),
-    ("package", "Spiel bauen", "Game.exe zum Testen (veröffentlichen im MZ-Editor)", True),
-]
+# Each step's label and hint are "step_<name>" and "step_<name>_hint" in i18n.
+STEPS = ["convert", "transcode", "fixup", "verify", "package"]
 
-ENCODINGS = [
-    ("cp1252", "Westeuropäisch (Deutsch, Englisch, ...)"),
-    ("cp932", "Japanisch"),
-    ("cp949", "Koreanisch"),
-    ("cp936", "Chinesisch (vereinfacht)"),
-    ("cp950", "Chinesisch (traditionell)"),
-    ("cp1251", "Kyrillisch"),
-    ("cp1250", "Mitteleuropäisch"),
-    ("utf-8", "UTF-8"),
-]
+ENCODINGS = ["cp1252", "cp932", "cp949", "cp936", "cp950", "cp1251", "cp1250", "utf-8"]
 
 # Colours of the dark theme.
 BG = "#15161c"
@@ -119,7 +106,7 @@ def describe_project(path: str, encoding: str) -> dict:
     version, title and number of maps.  Reads only the database."""
     ldb = os.path.join(path, "RPG_RT.ldb")
     if not os.path.isfile(ldb):
-        return {"ok": False, "error": "In diesem Ordner liegt keine RPG_RT.ldb."}
+        return {"ok": False, "error": t("no_ldb")}
     from .lcf import model
     with open(ldb, "rb") as fh:
         db = model.read_database(fh.read(), encoding)
@@ -127,13 +114,13 @@ def describe_project(path: str, encoding: str) -> dict:
     english = project._english_engine(path, db)
     db["_english"] = english
     updated = project._major_updated(path, db, encoding)
-    engine = "RPG Maker 2003" if rm2k3 else "RPG Maker 2000 (experimentell, ungetestet)"
+    engine = t("engine_2003") if rm2k3 else t("engine_2000")
     if english:
-        engine += " · 1.10+ (englisches Update)" if rm2k3 else " · 1.6x (englisches Update)"
+        engine += " · " + t("english_update", version="1.10+" if rm2k3 else "1.6x")
     elif updated:
         engine += " · 1.05+" if rm2k3 else " · Value!"
     else:
-        engine += " · alte Version"
+        engine += " · " + t("old_version")
     ini = project._read_ini(os.path.join(path, "RPG_RT.ini"), encoding)
     maps = sum(1 for entry in os.listdir(path) if re.match(r"(?i)^Map\d{4}\.lmu$", entry))
     return {
@@ -151,34 +138,62 @@ def missing_tools() -> str:
     from .audio import find_ffmpeg, find_fluidsynth, find_soundfont
     missing = []
     if not find_ffmpeg():
-        missing.append("ffmpeg (Musik umwandeln)")
+        missing.append(t("tool_ffmpeg"))
     if not (find_fluidsynth() and find_soundfont()):
-        missing.append("FluidSynth (MIDI-Musik)")
-    return " und ".join(missing)
-
-
-TEMPLATE_HELP = ("Lege im RPG Maker MZ ein neues, leeres Projekt an und wähle hier "
-                 "dessen Ordner. Daraus kommt die Engine (js/, index.html), ohne die "
-                 "das Projekt nicht startet und keine Game.exe gebaut wird.")
+        missing.append(t("tool_synth"))
+    return t("and").join(missing)
 
 
 def describe_template(path: str) -> tuple[str, bool]:
     """The line under the template field, and whether the template is usable."""
     from .mv import engine as engines
     if not path:
-        return "⚠  keine Vorlage gefunden. " + TEMPLATE_HELP, False
+        return t("template_none") + t("template_help"), False
     found = engines.detect(path) if os.path.isdir(path) else None
     if not found:
-        return "⚠  kein MV/MZ-Projekt (js/rmmz_core.js fehlt). " + TEMPLATE_HELP, False
+        return t("template_invalid") + t("template_help"), False
     if found.key != "mz":
-        return f"✓  {found.label} (experimentell, ungetestet)", True
-    return f"✓  {found.label} · ein frisches, leeres MZ-Projekt ist ideal", True
+        return t("template_mv", label=found.label), True
+    return t("template_ok", label=found.label), True
 
 
 def runtime_missing() -> bool:
-    """Whether „Spiel bauen“ will fail for lack of the MZ editor's NW.js."""
+    """Whether "Build game" will fail for lack of the MZ editor's NW.js."""
     from .mv import engine as engines
     return engines.find_runtime(engines.MZ) is None
+
+
+# -- language flags ------------------------------------------------------------
+
+def flag_image(lang: str, height: int):
+    """A small flag for the language switch, drawn at 4x and scaled down so
+    its edges stay smooth.  Flag emoji would show as plain letters on Windows."""
+    from PIL import Image, ImageDraw
+    k = 4
+    w, h = height * 3 // 2 * k, height * k
+    img = Image.new("RGB", (w, h), "white")
+    d = ImageDraw.Draw(img)
+    if lang == "en":                       # Union Jack, on a 3:2 field
+        u = w / 60
+        d.rectangle((0, 0, w, h), fill="#012169")
+        for line, width, colour in (((0, 0, w, h), 6, "white"), ((0, h, w, 0), 6, "white"),
+                                    ((0, 0, w, h), 2, "#C8102E"), ((0, h, w, 0), 2, "#C8102E")):
+            d.line(line, fill=colour, width=round(width * u))
+        cx, cy = w / 2, h / 2
+        for half, colour in ((5, "white"), (3, "#C8102E")):
+            d.rectangle((cx - half * u, 0, cx + half * u, h), fill=colour)
+            d.rectangle((0, cy - half * u, w, cy + half * u), fill=colour)
+    elif lang == "de":
+        for i, colour in enumerate(("#000000", "#DD0000", "#FFCE00")):
+            d.rectangle((0, i * h / 3, w, (i + 1) * h / 3), fill=colour)
+    elif lang == "es":
+        d.rectangle((0, 0, w, h), fill="#AA151B")
+        d.rectangle((0, h / 4, w, h * 3 / 4), fill="#F1BF00")
+    elif lang == "ja":
+        r = h * 3 / 10
+        d.ellipse((w / 2 - r, h / 2 - r, w / 2 + r, h / 2 + r), fill="#BC002D")
+    d.rectangle((0, 0, w - 1, h - 1), outline="#555866", width=k)
+    return img.resize((w // k, h // k), Image.LANCZOS)
 
 
 # -- logging into the window -------------------------------------------------
@@ -211,6 +226,7 @@ class App(tk.Frame):
         self.log_lines: list[tuple[int, str]] = []
 
         saved = load_settings()
+        i18n.set_language(saved.get("language", i18n.DEFAULT))
         self.source = tk.StringVar(value=saved.get("source", ""))
         self.target = tk.StringVar(value=saved.get("target", ""))
         self.game_dir = tk.StringVar(value=saved.get("game_dir", ""))
@@ -223,8 +239,8 @@ class App(tk.Frame):
         self.only_problems = tk.BooleanVar(value=False)
         self.show_advanced = tk.BooleanVar(value=False)
         saved_steps = saved.get("steps") or {}
-        self.steps = {name: tk.BooleanVar(value=saved_steps.get(name, on))
-                      for name, _, _, on in STEPS}
+        self.steps = {name: tk.BooleanVar(value=saved_steps.get(name, True))
+                      for name in STEPS}
         self.step_icons: dict[str, tk.Label] = {}
         self._current = ""
         self._project_job = None
@@ -232,6 +248,8 @@ class App(tk.Frame):
         self._fonts()
         self._styles()
         self._build()
+        self.source.trace_add("write", lambda *_: self._schedule_project())
+        self.template.trace_add("write", lambda *_: self._refresh_template())
         if not self.source.get():
             self._guess_defaults()
         self._refresh_project()
@@ -242,8 +260,13 @@ class App(tk.Frame):
     # -- look ----------------------------------------------------------------
     def _fonts(self) -> None:
         families = set(tkfont.families())
-        for family in ("Segoe UI", "Inter", "Ubuntu", "Cantarell", "Noto Sans",
-                       "DejaVu Sans", "Helvetica"):
+        # Japanese needs a font with kana and kanji; a Latin UI font leaves
+        # them to a fallback that spaces every character far apart.
+        japanese = ("Yu Gothic UI", "Meiryo UI", "Meiryo", "MS UI Gothic",
+                    "Hiragino Sans", "Noto Sans CJK JP", "Noto Sans JP")
+        latin = ("Segoe UI", "Inter", "Ubuntu", "Cantarell", "Noto Sans",
+                 "DejaVu Sans", "Helvetica")
+        for family in (japanese + latin if i18n.language() == "ja" else latin):
             if family in families:
                 break
         else:
@@ -318,6 +341,9 @@ class App(tk.Frame):
         form = tk.Frame(parent, bg=CARD)
         form.columnconfigure(1, weight=1)
         form.next_row = 0
+        # Hints wrap to the field's width, so a longer translation never runs
+        # out of the card.
+        form.bind("<Configure>", lambda _e: self._wrap_hints(form))
         return form
 
     def _path_row(self, form, label: str, var: tk.StringVar, command,
@@ -326,13 +352,19 @@ class App(tk.Frame):
         tk.Label(form, text=label, bg=CARD, fg=MUTED, font=self.f_body,
                  anchor="w").grid(row=row, column=0, sticky="w", padx=(0, 10), pady=(4, 0))
         ttk.Entry(form, textvariable=var).grid(row=row, column=1, sticky="ew", pady=(4, 0))
-        ttk.Button(form, text="Durchsuchen", style="Card.TButton",
+        ttk.Button(form, text=t("browse"), style="Card.TButton",
                    command=command).grid(row=row, column=2, padx=(8, 0), pady=(4, 0))
         info = tk.Label(form, text=hint, bg=CARD, fg=MUTED, font=self.f_small,
                         anchor="w", justify="left")
         info.grid(row=row + 1, column=1, columnspan=2, sticky="w")
         form.next_row = row + 2
         return info
+
+    def _wrap_hints(self, form) -> None:
+        width = max(form.winfo_width() - form.grid_bbox(1, 0)[0], 120)
+        for child in form.grid_slaves(column=1):
+            if isinstance(child, tk.Label):
+                child.config(wraplength=width)
 
     # -- layout --------------------------------------------------------------
     def _build(self) -> None:
@@ -343,8 +375,9 @@ class App(tk.Frame):
         tk.Label(titles, text="MakerBridge", bg=BG, fg=TEXT, font=self.f_title).pack(anchor="w")
         tk.Label(titles, text="RPG Maker 2000 / 2003  →  RPG Maker MZ",
                  bg=BG, fg=MUTED, font=self.f_body).pack(anchor="w")
-        ttk.Button(header, text="☕  Unterstützen", style="Coffee.TButton",
+        ttk.Button(header, text=t("support"), style="Coffee.TButton",
                    command=lambda: webbrowser.open(SUPPORT_URL)).pack(side="right")
+        self._language_flags(header)
         tk.Frame(self, bg=ACCENT, height=2).pack(fill="x", padx=18, pady=(4, 10))
 
         body = tk.Frame(self, bg=BG)
@@ -354,12 +387,12 @@ class App(tk.Frame):
         body.rowconfigure(3, weight=1)
 
         # 1  the game
-        game = self._card(body, "Spiel auswählen", "1")
+        game = self._card(body, t("card_game"), "1")
         game.grid(row=0, column=0, sticky="nsew", padx=(0, 6), pady=(0, 10))
         form = self._form(game.body)
         form.pack(fill="x")
-        self._path_row(form, "RM2k-Projekt", self.source, self._pick_source,
-                       "der Ordner mit der RPG_RT.ldb")
+        self._path_row(form, t("field_source"), self.source, self._pick_source,
+                       t("hint_source"))
         self.project_info = tk.Frame(game.body, bg=CARD)
         self.project_info.pack(fill="x", pady=(8, 0))
         self.project_status = tk.Label(self.project_info, bg=CARD, fg=MUTED,
@@ -370,66 +403,65 @@ class App(tk.Frame):
         self.project_details.pack(fill="x")
 
         # 2  where it goes
-        out = self._card(body, "Ziel", "2")
+        out = self._card(body, t("card_target"), "2")
         out.grid(row=0, column=1, sticky="nsew", padx=(6, 0), pady=(0, 10))
         form = self._form(out.body)
         form.pack(fill="x")
-        self._path_row(form, "MZ-Projekt", self.target, self._pick_target,
-                       "das konvertierte Projekt, zum Öffnen im Editor")
-        self._path_row(form, "Spielordner", self.game_dir, self._pick_game,
-                       "hier landet die spielbare Version (optional)")
-        self.template_info = self._path_row(form, "Engine-Vorlage", self.template,
+        self._path_row(form, t("field_target"), self.target, self._pick_target,
+                       t("hint_target"))
+        self._path_row(form, t("field_game"), self.game_dir, self._pick_game,
+                       t("hint_game"))
+        self.template_info = self._path_row(form, t("field_template"), self.template,
                                             self._pick_template)
-        self.template_info.config(wraplength=360)
 
         # 3  steps and options
-        steps = self._card(body, "Schritte", "3")
+        steps = self._card(body, t("card_steps"), "3")
         steps.grid(row=1, column=0, columnspan=2, sticky="nsew", pady=(0, 10))
         grid = tk.Frame(steps.body, bg=CARD)
         grid.pack(side="left", anchor="n")
-        for i, (name, label, hint, _) in enumerate(STEPS):
+        for i, name in enumerate(STEPS):
             icon = tk.Label(grid, text=STATE_ICON["wait"], bg=CARD, fg=MUTED,
                             font=self.f_head, width=2)
             icon.grid(row=i, column=0, sticky="w")
             self.step_icons[name] = icon
-            ttk.Checkbutton(grid, text=label, variable=self.steps[name]).grid(
+            ttk.Checkbutton(grid, text=t(f"step_{name}"), variable=self.steps[name]).grid(
                 row=i, column=1, sticky="w", padx=(2, 12))
-            tk.Label(grid, text=hint, bg=CARD, fg=MUTED, font=self.f_small).grid(
+            tk.Label(grid, text=t(f"step_{name}_hint"), bg=CARD, fg=MUTED, font=self.f_small).grid(
                 row=i, column=2, sticky="w")
         missing = missing_tools()
         if missing:
-            setup = ("„MakerBridge.bat setup“" if sys.platform.startswith("win")
-                     else "„./MakerBridge.sh setup“")
-            tk.Label(grid, text=f"⚠  {missing} fehlt – starte {setup}, um es zu installieren.",
+            setup = ("MakerBridge.bat setup" if sys.platform.startswith("win")
+                     else "./MakerBridge.sh setup")
+            tk.Label(grid, text=t("tools_missing", missing=missing, setup=setup),
                      bg=CARD, fg=WARN, font=self.f_small).grid(
                          row=len(STEPS), column=0, columnspan=3, sticky="w", pady=(8, 0))
         side = tk.Frame(steps.body, bg=CARD)
         side.pack(side="left", fill="both", expand=True, padx=(28, 0))
-        ttk.Checkbutton(side, text="Erweiterte Einstellungen", style="Plain.TCheckbutton",
+        ttk.Checkbutton(side, text=t("advanced"), style="Plain.TCheckbutton",
                         variable=self.show_advanced, command=self._toggle_advanced
                         ).pack(anchor="w")
         self.advanced = self._form(side)
-        tk.Label(self.advanced, text="Textkodierung", bg=CARD, fg=MUTED,
+        tk.Label(self.advanced, text=t("encoding"), bg=CARD, fg=MUTED,
                  anchor="w").grid(row=0, column=0, sticky="w", padx=(0, 10), pady=(4, 0))
         self.encoding_box = ttk.Combobox(
             self.advanced, state="readonly",
-            values=[f"{code}  –  {name}" for code, name in ENCODINGS])
+            values=[f"{code}  –  {t('enc_' + code)}" for code in ENCODINGS])
         self.encoding_box.grid(row=0, column=1, columnspan=2, sticky="ew", pady=(4, 0))
         self.encoding_box.bind("<<ComboboxSelected>>", self._encoding_chosen)
-        tk.Label(self.advanced, text="nur für Spiele, die nicht westeuropäisch sind",
-                 bg=CARD, fg=MUTED, font=self.f_small).grid(row=1, column=1, columnspan=2,
+        tk.Label(self.advanced, text=t("encoding_hint"), bg=CARD, fg=MUTED,
+                 font=self.f_small, anchor="w", justify="left").grid(row=1, column=1, columnspan=2,
                                                             sticky="w")
         self.advanced.next_row = 2
         self._show_encoding()
-        self._path_row(self.advanced, "RTP-Ordner", self.rtp, self._pick_rtp,
-                       "nur nötig, wenn das RTP nicht installiert ist")
-        self._path_row(self.advanced, "Soundfont", self.soundfont, self._pick_soundfont,
-                       "Klangbank für MIDI-Musik (.sf2/.sf3/.dls)")
+        self._path_row(self.advanced, t("field_rtp"), self.rtp, self._pick_rtp,
+                       t("hint_rtp"))
+        self._path_row(self.advanced, t("field_soundfont"), self.soundfont,
+                       self._pick_soundfont, t("hint_soundfont"))
 
         # action bar
         action = tk.Frame(body, bg=BG)
         action.grid(row=2, column=0, columnspan=2, sticky="ew", pady=(0, 10))
-        self.run_button = ttk.Button(action, text="▶  Konvertieren", style="Accent.TButton",
+        self.run_button = ttk.Button(action, text=t("run"), style="Accent.TButton",
                                      command=self._start)
         self.run_button.pack(side="left")
         progress_box = tk.Frame(action, bg=BG)
@@ -437,20 +469,20 @@ class App(tk.Frame):
         self.progress = ttk.Progressbar(progress_box, maximum=len(STEPS),
                                         style="Horizontal.TProgressbar")
         self.progress.pack(fill="x")
-        self.status = tk.Label(progress_box, text="bereit", bg=BG, fg=MUTED,
+        self.status = tk.Label(progress_box, text=t("ready"), bg=BG, fg=MUTED,
                                font=self.f_body, anchor="w")
         self.status.pack(fill="x", pady=(4, 0))
 
         # the log
-        logcard = self._card(body, "Protokoll")
+        logcard = self._card(body, t("card_log"))
         logcard.grid(row=3, column=0, columnspan=2, sticky="nsew", pady=(0, 10))
         tools = tk.Frame(logcard.body, bg=CARD)
         tools.pack(fill="x", pady=(0, 6))
-        ttk.Checkbutton(tools, text="nur Warnungen und Fehler", style="Plain.TCheckbutton",
+        ttk.Checkbutton(tools, text=t("only_problems"), style="Plain.TCheckbutton",
                         variable=self.only_problems, command=self._refilter).pack(side="left")
-        ttk.Button(tools, text="Kopieren", style="Card.TButton",
+        ttk.Button(tools, text=t("copy"), style="Card.TButton",
                    command=self._copy_log).pack(side="right")
-        ttk.Button(tools, text="Log-Ordner", style="Card.TButton",
+        ttk.Button(tools, text=t("log_folder"), style="Card.TButton",
                    command=lambda: self._open(os.path.join(self.tool_root, "log"))
                    ).pack(side="right", padx=6)
         self.summary = tk.Label(tools, text="", bg=CARD, fg=MUTED, font=self.f_body)
@@ -473,17 +505,57 @@ class App(tk.Frame):
         footer = tk.Frame(self, bg=BG)
         # Packed before the body, so a small screen squeezes the log, not this.
         footer.pack(side="bottom", fill="x", padx=18, pady=(0, 12), before=body)
-        ttk.Button(footer, text="Ausgabe öffnen", style="Card.TButton",
+        ttk.Button(footer, text=t("open_output"), style="Card.TButton",
                    command=lambda: self._open(self.target.get())).pack(side="left")
-        ttk.Button(footer, text="Spiel starten", style="Card.TButton",
+        ttk.Button(footer, text=t("play"), style="Card.TButton",
                    command=self._play).pack(side="left", padx=8)
         credit = tk.Label(footer, text=f"© {AUTHOR}  ·  GPL-3.0  ·  {SUPPORT_URL.split('//')[1]}",
                           bg=BG, fg=MUTED, font=self.f_small, cursor="hand2")
         credit.pack(side="right")
         credit.bind("<Button-1>", lambda _e: webbrowser.open(SUPPORT_URL))
 
-        self.source.trace_add("write", lambda *_: self._schedule_project())
-        self.template.trace_add("write", lambda *_: self._refresh_template())
+
+    def _language_flags(self, header) -> None:
+        """One flag per language next to the support button; the current one
+        is framed.  Without Pillow the flags fall back to language codes."""
+        box = tk.Frame(header, bg=BG)
+        box.pack(side="right", padx=(0, 14))
+        scale = max(1.0, float(self.master.tk.call("tk", "scaling")) / (96 / 72))
+        self._flag_images = []
+        for lang in i18n.LANGUAGES:
+            active = lang == i18n.language()
+            try:
+                from PIL import ImageTk
+                image = ImageTk.PhotoImage(flag_image(lang, round(16 * scale)))
+                self._flag_images.append(image)
+                flag = tk.Label(box, image=image, bg=BG)
+            except Exception:                               # noqa: BLE001 - no Pillow/Tk image
+                flag = tk.Label(box, text=lang.upper(), bg=BG, fg=TEXT, font=self.f_bold)
+            flag.config(cursor="hand2", highlightthickness=2, bd=0,
+                        highlightbackground=ACCENT if active else BG,
+                        highlightcolor=ACCENT if active else BG)
+            flag.pack(side="left", padx=3)
+            flag.bind("<Button-1>", lambda _e, lang=lang: self._set_language(lang))
+
+    def _set_language(self, lang: str) -> None:
+        if lang == i18n.language():
+            return
+        if self.worker and self.worker.is_alive():
+            messagebox.showinfo("MakerBridge", t("language_busy"))
+            return
+        i18n.set_language(lang)
+        self._remember()
+        for child in self.winfo_children():
+            child.destroy()
+        self._fonts()
+        self._styles()
+        self.step_icons = {}
+        self._build()
+        if self.show_advanced.get():
+            self._toggle_advanced()
+        self._refresh_project()
+        self._refresh_template()
+        self._refilter()
 
     # -- small actions -------------------------------------------------------
     def _toggle_advanced(self) -> None:
@@ -494,14 +566,13 @@ class App(tk.Frame):
 
     def _show_encoding(self) -> None:
         code = self.encoding.get()
-        for index, (value, _) in enumerate(ENCODINGS):
-            if value == code:
-                self.encoding_box.current(index)
-                return
-        self.encoding_box.set(code)
+        if code in ENCODINGS:
+            self.encoding_box.current(ENCODINGS.index(code))
+        else:
+            self.encoding_box.set(code)
 
     def _encoding_chosen(self, _event=None) -> None:
-        self.encoding.set(ENCODINGS[self.encoding_box.current()][0])
+        self.encoding.set(ENCODINGS[self.encoding_box.current()])
         self._refresh_project()
 
     def _open(self, path: str) -> None:
@@ -509,14 +580,14 @@ class App(tk.Frame):
             try:
                 open_path(path)
             except OSError as exc:
-                messagebox.showerror("Öffnen fehlgeschlagen", str(exc))
+                messagebox.showerror(t("open_failed"), str(exc))
         else:
-            messagebox.showinfo("Noch nichts da", "Dieser Ordner existiert noch nicht.")
+            messagebox.showinfo(t("not_yet_title"), t("not_yet"))
 
     def _copy_log(self) -> None:
         self.clipboard_clear()
         self.clipboard_append("\n".join(text for _, text in self.log_lines))
-        self.status.config(text="Protokoll in die Zwischenablage kopiert")
+        self.status.config(text=t("copied"))
 
     def _guess_defaults(self) -> None:
         """Offer the first RM2k game sitting next to the tool."""
@@ -540,43 +611,41 @@ class App(tk.Frame):
         return filedialog.askdirectory(title=title, parent=self.master)
 
     def _pick_source(self) -> None:
-        chosen = self._pick("Ordner des RPG Maker 2000/2003-Spiels (mit RPG_RT.ldb)")
+        chosen = self._pick(t("pick_source"))
         if chosen:
             self._set_source(chosen)
 
     def _pick_target(self) -> None:
-        chosen = self._pick("Zielordner für das MZ-Projekt")
+        chosen = self._pick(t("pick_target"))
         if chosen:
             self.target.set(chosen)
 
     def _pick_game(self) -> None:
-        chosen = self._pick("Ordner für die spielbare Version")
+        chosen = self._pick(t("pick_game"))
         if chosen:
             self.game_dir.set(chosen)
 
     def _pick_template(self) -> None:
-        chosen = self._pick("Ein RPG Maker MZ-Projekt als Engine-Vorlage")
+        chosen = self._pick(t("pick_template"))
         if chosen:
             self.template.set(chosen)
 
     def _pick_rtp(self) -> None:
-        chosen = self._pick("RTP-Ordner von RPG Maker 2000/2003")
+        chosen = self._pick(t("pick_rtp"))
         if chosen:
             self.rtp.set(chosen)
 
     def _pick_soundfont(self) -> None:
         chosen = filedialog.askopenfilename(
-            title="Soundfont wählen", parent=self.master,
-            filetypes=[("Soundfont", "*.sf2 *.sf3 *.dls"), ("Alle Dateien", "*")])
+            title=t("pick_soundfont"), parent=self.master,
+            filetypes=[(t("field_soundfont"), "*.sf2 *.sf3 *.dls"), (t("all_files"), "*")])
         if chosen:
             self.soundfont.set(chosen)
 
     def _play(self) -> None:
         exe = find_game_exe(self.game_dir.get())
         if not exe:
-            messagebox.showinfo("Noch kein Spiel",
-                                "Im Spielordner liegt noch keine Game.exe.\n"
-                                "Lass den Schritt „Spiel bauen“ mitlaufen.")
+            messagebox.showinfo(t("no_game_title"), t("no_game"))
             return
         if sys.platform.startswith("win"):
             subprocess.Popen([exe], cwd=os.path.dirname(exe))
@@ -585,11 +654,7 @@ class App(tk.Frame):
         if wine:
             subprocess.Popen([wine, exe], cwd=os.path.dirname(exe))
         else:
-            messagebox.showinfo(
-                "Wine fehlt",
-                "Das gebaute Spiel ist eine Windows-Anwendung, wie sie RPG Maker "
-                "MV/MZ erzeugt. Unter Linux startest du es mit Wine "
-                "(z. B. „sudo apt install wine“).")
+            messagebox.showinfo(t("wine_title"), t("wine"))
 
     # -- project and template info --------------------------------------------
     def _schedule_project(self) -> None:
@@ -603,21 +668,20 @@ class App(tk.Frame):
         if not path:
             self._show_project({"ok": None})
             return
-        self.project_status.config(text="lese Projekt …", fg=MUTED)
+        self.project_status.config(text=t("reading"), fg=MUTED)
         self.project_details.config(text="")
 
         def work():
             try:
                 info = describe_project(path, encoding)
             except Exception as exc:                        # noqa: BLE001
-                info = {"ok": False, "error": f"Konnte das Projekt nicht lesen: {exc}"}
+                info = {"ok": False, "error": t("read_failed", error=exc)}
             self.messages.put(("project", path, info))
         threading.Thread(target=work, daemon=True).start()
 
     def _show_project(self, info: dict) -> None:
         if info.get("ok") is None:
-            self.project_status.config(text="Wähle den Ordner eines RPG Maker 2000/2003-Spiels.",
-                                       fg=MUTED)
+            self.project_status.config(text=t("pick_a_game"), fg=MUTED)
             self.project_details.config(text="")
         elif not info["ok"]:
             self.project_status.config(text="✗  " + info["error"], fg=ERR)
@@ -625,8 +689,8 @@ class App(tk.Frame):
         else:
             self.project_status.config(text=f"✓  {info['title']}", fg=OK)
             self.project_details.config(
-                text=f"{info['engine']}\n{info['maps']} Maps · {info['actors']} Helden · "
-                     f"{info['events']} Common Events")
+                text=info["engine"] + "\n" + t("project_counts", maps=info["maps"],
+                                                actors=info["actors"], events=info["events"]))
 
     def _refresh_template(self) -> None:
         text, ok = describe_template(self.template.get().strip())
@@ -638,15 +702,13 @@ class App(tk.Frame):
             return
         source = self.source.get().strip()
         if not os.path.isfile(os.path.join(source, "RPG_RT.ldb")):
-            messagebox.showerror("Kein Spiel gewählt",
-                                 "Bitte den Ordner eines RPG Maker 2000/2003-Spiels wählen "
-                                 "(der Ordner mit der RPG_RT.ldb).")
+            messagebox.showerror(t("no_source_title"), t("no_source"))
             return
         if not self.target.get().strip():
-            messagebox.showerror("Kein Ziel", "Bitte einen Zielordner für das Projekt wählen.")
+            messagebox.showerror(t("no_target_title"), t("no_target"))
             return
         if not any(var.get() for var in self.steps.values()):
-            messagebox.showinfo("Nichts zu tun", "Bitte mindestens einen Schritt auswählen.")
+            messagebox.showinfo(t("nothing_title"), t("nothing"))
             return
         if not self._preflight():
             return
@@ -669,18 +731,15 @@ class App(tk.Frame):
         if self.steps["convert"].get():
             _, ok = describe_template(self.template.get().strip())
             if not ok:
-                problems.append("Keine gültige Engine-Vorlage.\n" + TEMPLATE_HELP)
+                problems.append(t("pre_template") + "\n" + t("template_help"))
         if (self.steps["package"].get() and self.game_dir.get().strip()
                 and runtime_missing()):
-            problems.append("RPG Maker MZ wurde nicht gefunden (Ordner nwjs-win der "
-                            "Installation). Ohne ihn kann „Spiel bauen“ keine "
-                            "Game.exe erzeugen.")
+            problems.append(t("pre_runtime"))
         if not problems:
             return True
         return messagebox.askyesno(
-            "Voraussetzung fehlt",
-            "\n\n".join(problems) + "\n\nTrotzdem fortfahren? Das Projekt enthält "
-            "dann nur data/ und img/ und lässt sich weder starten noch als Spiel bauen.",
+            t("pre_title"),
+            "\n\n".join(problems) + "\n\n" + t("pre_continue"),
             icon="warning", parent=self.master)
 
     def _remember(self) -> None:
@@ -691,6 +750,7 @@ class App(tk.Frame):
             "soundfont": self.soundfont.get(),
             "steps": {name: var.get() for name, var in self.steps.items()},
             "support_hidden": self.support_hidden,
+            "language": i18n.language(),
         })
 
     def _run(self) -> None:
@@ -715,9 +775,10 @@ class App(tk.Frame):
         target = self.target.get().strip()
         failed = False
         done = 0
-        for index, (name, label, _, _) in enumerate(STEPS):
+        for index, name in enumerate(STEPS):
             if not self.steps[name].get():
                 continue
+            label = t(f"step_{name}")
             self.messages.put(("step", name, "run", label, done))
             try:
                 ok = self._run_step(name, target, log)
@@ -729,11 +790,10 @@ class App(tk.Frame):
             if not ok:
                 failed = True
                 if name in ("convert", "verify"):
-                    rest = [later for n, later, _, _ in STEPS[index + 1:]
-                            if self.steps[n].get()]
+                    rest = [t(f"step_{later}") for later in STEPS[index + 1:]
+                            if self.steps[later].get()]
                     if rest:
-                        log.warning("„%s“ fehlgeschlagen, daher übersprungen: %s",
-                                    label, ", ".join(rest))
+                        log.warning("%s", t("log_skipped", step=label, rest=", ".join(rest)))
                     break                                   # nothing sensible follows
         root.removeHandler(handler)
         if file_handler:
@@ -760,7 +820,7 @@ class App(tk.Frame):
             return not verify(target, log)
         if name == "package":
             if not self.game_dir.get().strip():
-                log.warning("kein Spielordner angegeben, „Spiel bauen“ übersprungen")
+                log.warning("%s", t("log_no_game_dir"))
                 return True
             from .package import build
             return not build(target, self.game_dir.get().strip(), log, overwrite=True)
@@ -811,7 +871,7 @@ class App(tk.Frame):
                     self.progress["value"] = done
                     if state == "run":
                         total = sum(1 for var in self.steps.values() if var.get())
-                        self._current = f"Schritt {done + 1}/{total} · {label}"
+                        self._current = t("step_of", n=done + 1, total=total, label=label)
                         self._append(-1, f"── {label} ──")
                 elif kind == "project":
                     _, path, info = message
@@ -830,11 +890,11 @@ class App(tk.Frame):
         self.run_button.state(["!disabled"])
         self.progress["value"] = len(STEPS)
         warn, err = self.counts["warn"], self.counts["err"]
-        counts = f"{warn} Warnung{'en' if warn != 1 else ''}, {err} Fehler"
+        counts = i18n.counts(warn, err)
         if failed:
-            self.status.config(text=f"✗  Abgebrochen nach {self._elapsed()} · {counts}", fg=ERR)
+            self.status.config(text=t("aborted", time=self._elapsed(), counts=counts), fg=ERR)
         else:
-            self.status.config(text=f"✓  Fertig in {self._elapsed()} · {counts}",
+            self.status.config(text=t("done", time=self._elapsed(), counts=counts),
                                fg=WARN if warn else OK)
         self.summary.config(text=counts, fg=ERR if err else WARN if warn else OK)
         if not failed and self.steps["convert"].get() and not self.support_hidden:
@@ -843,18 +903,14 @@ class App(tk.Frame):
     def _ask_support(self) -> None:
         """Right after a game came through is when people are glad to give."""
         dialog = tk.Toplevel(self.master, bg=CARD, padx=24, pady=20)
-        dialog.title("Konvertierung abgeschlossen")
+        dialog.title(t("support_title"))
         dialog.resizable(False, False)
         dialog.transient(self.master)
-        tk.Label(dialog, text="☕  Dein Spiel ist jetzt ein MZ-Projekt!", bg=CARD, fg=TEXT,
+        tk.Label(dialog, text=t("support_head"), bg=CARD, fg=TEXT,
                  font=self.f_head).pack(anchor="w")
         tk.Label(dialog, bg=CARD, fg=MUTED, font=self.f_body, justify="left",
                  wraplength=470,
-                 text="MakerBridge ist kostenlos und Open Source. "
-                      "Wenn es dir geholfen hat, freue ich mich über einen Kaffee – "
-                      "jede Spende fließt in weitere Funktionen und noch mehr "
-                      "Spiele, die sauber konvertieren."
-                 ).pack(anchor="w", pady=(8, 16))
+                 text=t("support_text")).pack(anchor="w", pady=(8, 16))
         buttons = tk.Frame(dialog, bg=CARD)
         buttons.pack(fill="x")
 
@@ -866,11 +922,11 @@ class App(tk.Frame):
                 self._remember()
             dialog.destroy()
 
-        ttk.Button(buttons, text="☕  Kaffee spendieren", style="Coffee.TButton",
+        ttk.Button(buttons, text=t("donate"), style="Coffee.TButton",
                    command=lambda: close(donate=True)).pack(side="left")
-        ttk.Button(buttons, text="Später", style="Card.TButton",
+        ttk.Button(buttons, text=t("later"), style="Card.TButton",
                    command=close).pack(side="left", padx=(8, 0))
-        ttk.Button(buttons, text="Nicht mehr anzeigen", style="Card.TButton",
+        ttk.Button(buttons, text=t("never"), style="Card.TButton",
                    command=lambda: close(hide=True)).pack(side="right")
         dialog.protocol("WM_DELETE_WINDOW", close)
         dialog.bind("<Escape>", lambda _e: close())
@@ -883,8 +939,7 @@ class App(tk.Frame):
 
     def _close(self) -> None:
         if self.worker and self.worker.is_alive():
-            if not messagebox.askyesno("Konvertierung läuft",
-                                       "Die Konvertierung läuft noch. Trotzdem beenden?"):
+            if not messagebox.askyesno(t("running_title"), t("running")):
                 return
         self._remember()
         self.master.destroy()
@@ -905,11 +960,11 @@ def dpi_aware() -> None:
 def main() -> int:
     tool_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     dpi_aware()
+    i18n.set_language(load_settings().get("language", i18n.DEFAULT))
     try:
         root = tk.Tk()
     except tk.TclError as exc:
-        print(f"Kein Fenster möglich ({exc}). Unter Linux fehlt vielleicht python3-tk "
-              "oder eine grafische Sitzung.", file=sys.stderr)
+        print(t("no_window", error=exc), file=sys.stderr)
         return 1
     root.title("MakerBridge – RPG Maker 2000/2003 → MZ")
     root.configure(bg=BG)

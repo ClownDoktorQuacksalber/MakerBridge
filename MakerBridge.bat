@@ -2,15 +2,15 @@
 rem ---------------------------------------------------------------------------
 rem MakerBridge - RPG Maker 2000/2003 -> RPG Maker MZ
 rem
-rem   Doppelklick                    oeffnet das Fenster
-rem   MakerBridge.bat setup          prueft und installiert, was gebraucht wird
-rem   MakerBridge.bat convert ...    Kommandozeile (siehe MakerBridge.bat --help)
+rem   double-click                   opens the window
+rem   MakerBridge.bat setup          checks and installs what is needed
+rem   MakerBridge.bat convert ...    command line (see MakerBridge.bat --help)
 rem
-rem Beim ersten Start richtet MakerBridge sich selbst ein: Es sucht Python
-rem (oder installiert es ueber winget), legt im eigenen Ordner eine eigene
-rem Python-Umgebung .venv an und installiert dort Pillow - am System-Python
-rem wird nichts veraendert. ffmpeg fuer die Musik wird auf Wunsch installiert.
-rem Den Ordner zu loeschen entfernt alles wieder (bis auf Python/ffmpeg selbst).
+rem On the first start MakerBridge sets itself up: it looks for Python (or
+rem installs it through winget), creates its own Python environment .venv in
+rem this folder and installs Pillow there - the system's Python is left alone.
+rem ffmpeg for the music is installed on request.  Deleting the folder removes
+rem everything again (except Python and ffmpeg themselves).
 rem ---------------------------------------------------------------------------
 setlocal EnableDelayedExpansion
 cd /d "%~dp0"
@@ -25,7 +25,7 @@ call :setup
 if errorlevel 1 exit /b 1
 if /i "%~1"=="setup" (
     echo.
-    echo  Alles bereit. Starte MakerBridge mit einem Doppelklick auf MakerBridge.bat.
+    echo  All set. Start MakerBridge by double-clicking MakerBridge.bat.
     echo.
     pause
     exit /b 0
@@ -53,8 +53,8 @@ set "WINGET="
 where winget >nul 2>&1 && set "WINGET=1"
 if defined VERBOSE (
     echo.
-    echo  MakerBridge - Einrichtung
-    echo  =========================
+    echo  MakerBridge - setup
+    echo  ===================
 )
 
 rem -- MakerBridge's own Python environment --------------------------------
@@ -69,39 +69,39 @@ if not exist "%VPY%" (
     call :find_python
     if not defined PY (
         echo.
-        echo  MakerBridge braucht Python 3.10 oder neuer. Es ist noch nicht installiert.
+        echo  MakerBridge needs Python 3.10 or newer. It is not installed yet.
         if not defined WINGET goto :python_manual
         echo.
-        choice /c JN /m " Python jetzt automatisch installieren"
+        choice /c YN /m " Install Python automatically now"
         if errorlevel 2 goto :python_manual
         winget install -e --id Python.Python.3.12 --scope user --accept-source-agreements --accept-package-agreements
         call :find_python
         if not defined PY (
             echo.
-            echo  Python wurde installiert. Bitte MakerBridge noch einmal starten,
-            echo  damit Windows es findet.
+            echo  Python has been installed. Please start MakerBridge once more
+            echo  so that Windows finds it.
             pause
             exit /b 1
         )
     )
     echo.
-    echo  Richte MakerBridge ein ^(eigene Python-Umgebung in .venv^) ...
+    echo  Setting up MakerBridge ^(its own Python environment in .venv^) ...
     "!PY!" -m venv "%VENV%"
     if not exist "%VPY%" (
-        echo  Die Python-Umgebung konnte nicht angelegt werden.
+        echo  The Python environment could not be created.
         pause
         exit /b 1
     )
 )
-if defined VERBOSE echo  [ok] Python-Umgebung: %VENV%
+if defined VERBOSE echo  [ok] Python environment: %VENV%
 
 rem -- Tkinter (the window) --------------------------------------------------
 "%VPY%" -c "import tkinter" >nul 2>&1
 if errorlevel 1 (
     echo.
-    echo  Deinem Python fehlt Tkinter, das fuer das Fenster gebraucht wird.
-    echo  Installiere Python neu von https://www.python.org/downloads/ und lass
-    echo  "tcl/tk and IDLE" angehakt. Danach den Ordner .venv loeschen.
+    echo  Your Python lacks Tkinter, which the window needs.
+    echo  Reinstall Python from https://www.python.org/downloads/ with
+    echo  "tcl/tk and IDLE" ticked, then delete the .venv folder.
     pause
     exit /b 1
 )
@@ -109,13 +109,13 @@ if errorlevel 1 (
 rem -- Pillow, inside .venv ---------------------------------------------------
 "%VPY%" -c "import PIL" >nul 2>&1
 if errorlevel 1 (
-    echo  Installiere Pillow ^(Bildbearbeitung^) in die MakerBridge-Umgebung ...
+    echo  Installing Pillow ^(image processing^) into the MakerBridge environment ...
     "%VPY%" -m pip install --disable-pip-version-check --quiet -r requirements.txt
     "%VPY%" -c "import PIL" >nul 2>&1
     if errorlevel 1 (
         echo.
-        echo  Pillow konnte nicht installiert werden. Pruefe die Internetverbindung
-        echo  und starte MakerBridge noch einmal.
+        echo  Pillow could not be installed. Check your internet connection
+        echo  and start MakerBridge again.
         pause
         exit /b 1
     )
@@ -130,17 +130,17 @@ if not errorlevel 1 (
 )
 if exist "log\no-ffmpeg" if not defined VERBOSE exit /b 0
 echo.
-echo  ffmpeg fehlt. Ohne ffmpeg wird die Musik des Spiels nicht umgewandelt
-echo  ^(Schritt "Audio umwandeln"^) - alles andere funktioniert trotzdem.
+echo  ffmpeg is missing. Without it the game's music is not converted
+echo  ^(step "Convert audio"^) - everything else still works.
 if not defined WINGET (
     echo  Download: https://www.gyan.dev/ffmpeg/builds/
     exit /b 0
 )
 echo.
-choice /c JN /m " ffmpeg jetzt automatisch installieren"
+choice /c YN /m " Install ffmpeg automatically now"
 if errorlevel 2 (
-    echo nein> "log\no-ffmpeg"
-    echo  Ok - mit "MakerBridge.bat setup" kannst du es spaeter nachholen.
+    echo no> "log\no-ffmpeg"
+    echo  Ok - you can catch up on it later with "MakerBridge.bat setup".
     exit /b 0
 )
 winget install -e --id Gyan.FFmpeg --accept-source-agreements --accept-package-agreements
@@ -149,9 +149,9 @@ exit /b 0
 
 :python_manual
 echo.
-echo  Bitte installiere Python von https://www.python.org/downloads/
-echo  ^(bei der Installation "Add python.exe to PATH" anhaken^) und starte
-echo  MakerBridge danach noch einmal.
+echo  Please install Python from https://www.python.org/downloads/
+echo  ^(tick "Add python.exe to PATH" during the installation^) and then
+echo  start MakerBridge again.
 start "" "https://www.python.org/downloads/"
 pause
 exit /b 1
