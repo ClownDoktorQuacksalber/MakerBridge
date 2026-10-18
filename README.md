@@ -1,21 +1,21 @@
-# rm2k2mv
+# MakerBridge
 
-**Bring RPG Maker 2000 and 2003 games to RPG Maker MV and MZ — and keep them
-playing like the original.**
+**RPG Maker 2000 / 2003 → RPG Maker MZ.
+Bring your old games to MZ — and keep them playing like the original.**
 
-[![Buy Me a Coffee](https://img.shields.io/badge/Buy%20me%20a%20coffee-support%20rm2k2mv-FFDD00?style=for-the-badge&logo=buymeacoffee&logoColor=black)](https://buymeacoffee.com/clowndoktorquacksalber)
+[![Buy Me a Coffee](https://img.shields.io/badge/Buy%20me%20a%20coffee-support%20MakerBridge-FFDD00?style=for-the-badge&logo=buymeacoffee&logoColor=black)](https://buymeacoffee.com/clowndoktorquacksalber)
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue?style=for-the-badge)](LICENSE)
 
 Created by **Clown Doktor Quacksalber** (Resan Alkoyun).
 
-rm2k2mv reads an RPG Maker 2000/2003 project — the binary `.ldb`, `.lmt` and
-`.lmu` files plus its graphics and music — and writes a complete RPG Maker
-MV/MZ project from it, ready to open in the editor or to package as a
-playable `Game.exe`. It does not stop at copying data: a generated plugin,
+MakerBridge reads an RPG Maker 2000 or 2003 project — the binary `.ldb`,
+`.lmt` and `.lmu` files plus its graphics and music — and writes a complete
+RPG Maker MZ project from it, ready to open in the editor or to package as a playable
+`Game.exe`. It does not stop at copying data: a generated plugin,
 `RM2kCompat.js`, makes the converted game *behave* like RPG_RT, from how
 pictures wave and tint to how a battle counts its turns.
 
-> ☕ **rm2k2mv is free and open source.** If it brought your old game back to
+> ☕ **MakerBridge is free and open source.** If it brought your old game back to
 > life, you can support its development on
 > **[Buy Me a Coffee](https://buymeacoffee.com/clowndoktorquacksalber)**.
 > Every coffee goes into more supported features and more games that
@@ -23,11 +23,24 @@ pictures wave and tint to how a battle counts its turns.
 
 ---
 
+## What is tested
+
+| Source | Target | Status |
+|---|---|---|
+| RPG Maker 2003 | RPG Maker MZ | **tested** with a complete game (307 maps) |
+| RPG Maker 2003 | RPG Maker MV | experimental — supported in the code, not tested |
+| RPG Maker 2000 | RPG Maker MZ / MV | experimental — supported in the code, not tested |
+
+RPG Maker 2000 and 2003 share their file formats and most of their rules,
+and MakerBridge handles the differences between them (and between their
+runtime versions). Reports from RPG Maker 2000 games or MV targets are very
+welcome.
+
 ## Highlights
 
-- **Both engines, every version.** RPG Maker 2000 and 2003, including the
-  official English updates (2003 1.10+, 2000 1.6x) and the older runtimes;
-  the version is read from `RPG_RT.exe` and its rules are applied.
+- **RPG Maker 2000 and 2003, every version.** The official English updates
+  (2003 1.10+, 2000 1.6x) as well as the older runtimes; the version is read
+  from `RPG_RT.exe` and its rules are applied.
 - **Faithful events.** About 99.8 % of all event commands translate directly.
   Parallel and autostart events run in RPG_RT's order, a parallel event keeps
   running after a teleport, message options, timers, key input, variable
@@ -51,17 +64,17 @@ pictures wave and tint to how a battle counts its turns.
 - **Graphics and audio.** Everything scaled 3x with nearest-neighbour, XYZ
   images decoded, RTP files found and included, MIDI rendered with
   FluidSynth, everything else transcoded to Ogg.
-- **One click to a game.** `gui.bat` converts, checks and packages the result
-  as a stand-alone `Game.exe`.
+- **One click to a game.** `gui.bat` (or `./gui.sh`) converts, checks and
+  packages the result as a stand-alone `Game.exe`.
 
 ## Requirements
 
 - Python 3.10 or newer and **Pillow** (`pip install Pillow`)
 - **ffmpeg** on the PATH (or `--ffmpeg`) for `transcode`
-- your own copy of **RPG Maker MV or MZ** — rm2k2mv takes the engine runtime
-  from an MV/MZ project on your machine and contains none itself
+- your own copy of **RPG Maker MZ** — MakerBridge takes the engine runtime
+  from an MZ project on your machine and contains none itself
 
-rm2k2mv runs on **Windows, Linux and macOS**. On Linux, install Tkinter for
+MakerBridge runs on **Windows, Linux and macOS**. On Linux, install Tkinter for
 the window and FluidSynth plus a General MIDI soundfont for MIDI music, e.g.
 on Debian/Ubuntu:
 
@@ -190,7 +203,7 @@ end of its run, so nothing disappears silently.
 ```
 run.bat, gui.bat      launchers (Windows); write log\<command>-<timestamp>.log
 run.sh, gui.sh        the same for Linux and macOS
-rm2k2mv\
+makerbridge\
   lcf\reader.py       compressed integers, chunks, arrays
   lcf\const.py        chunk ids, tile id decoding, chipset geometry
   lcf\schema.py       field tables per record type
@@ -222,26 +235,26 @@ established against real data.
 
 ## Support
 
-rm2k2mv is a one-person project, built in free time. If it saves you weeks
+MakerBridge is a one-person project, built in free time. If it saves you weeks
 of rebuilding a game by hand, a coffee keeps it going:
 
 **☕ [buymeacoffee.com/clowndoktorquacksalber](https://buymeacoffee.com/clowndoktorquacksalber)**
 
 Bug reports with the `log\` file of the run (and, for a game crash, the
-`rm2k2mv-error.log` next to `Game.exe`) help just as much.
+`makerbridge-error.log` next to `Game.exe`) help just as much.
 
 ## License
 
 Copyright (C) 2026 Clown Doktor Quacksalber (Resan Alkoyun)
 
-rm2k2mv is free software: you can redistribute it and/or modify it under the
+MakerBridge is free software: you can redistribute it and/or modify it under the
 terms of the GNU General Public License as published by the Free Software
 Foundation, either version 3 of the License, or (at your option) any later
 version. It is distributed in the hope that it will be useful, but WITHOUT
 ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
 FOR A PARTICULAR PURPOSE. See `LICENSE` for the full text.
 
-Parts of rm2k2mv are derived from [EasyRPG Player](https://github.com/EasyRPG/Player)
+Parts of MakerBridge are derived from [EasyRPG Player](https://github.com/EasyRPG/Player)
 (GPL-3.0) and follow [liblcf](https://github.com/EasyRPG/liblcf) (MIT); the
 FluidSynth, libsndfile and SDL binaries in `tools\fluidsynth\` come under their
 own licenses. `THIRD_PARTY_NOTICES.md` lists them all, with the license texts
@@ -249,15 +262,15 @@ in `licenses\`.
 
 ## Not affiliated
 
-rm2k2mv is an independent fan project. It is not made, endorsed or supported
+MakerBridge is an independent fan project. It is not made, endorsed or supported
 by KADOKAWA, Gotcha Gotcha Games or Enterbrain. "RPG Maker" is a trademark of
-its owners and is used here only to say which file formats rm2k2mv reads and
-writes. rm2k2mv contains no files of any RPG Maker product; to build a
+its owners and is used here only to say which file formats MakerBridge reads and
+writes. MakerBridge contains no files of any RPG Maker product; to build a
 playable game you need your own copy of RPG Maker MV or MZ.
 
 ## Your games, your rights
 
-rm2k2mv converts a game; it does not grant any rights to it. Graphics, music,
+MakerBridge converts a game; it does not grant any rights to it. Graphics, music,
 story and code of a game belong to their authors. Convert and publish only
 games you made yourself or have permission to use, and check the licenses of
 any RTP or third-party resources the game contains before you release the

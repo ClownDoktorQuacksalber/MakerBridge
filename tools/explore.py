@@ -8,7 +8,7 @@ from __future__ import annotations
 import sys, os, struct
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
-from rm2k2mv.lcf.reader import (
+from makerbridge.lcf.reader import (
     Reader, read_signature, probe_struct, probe_array, as_ber_array,
 )
 

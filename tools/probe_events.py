@@ -1,7 +1,7 @@
 """Probe the event-command encoding: count, then (code, indent, string, params)."""
 import sys, os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
-from rm2k2mv.lcf.reader import Reader, read_signature, probe_array, probe_struct
+from makerbridge.lcf.reader import Reader, read_signature, probe_array, probe_struct
 
 ENC = "cp1252"
 

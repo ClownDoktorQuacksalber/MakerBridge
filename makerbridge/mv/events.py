@@ -396,7 +396,7 @@ class Translator:
                 if ((following["code"] == SHOW_CHOICE
                         and lines + _choice_count(commands, index + 1) > 4)
                         or (following["code"] == INPUT_NUMBER and lines >= 4)):
-                    emit(MV_COMMENT, ["[rm2k2mv] does not fit into the message"])
+                    emit(MV_COMMENT, ["[MakerBridge] does not fit into the message"])
         elif code == SHOW_MESSAGE_2:
             emit(MV_TEXT_LINE, [self._text(text)])
         elif code == SHOW_CHOICE:
@@ -484,7 +484,7 @@ class Translator:
             slot = SYSTEM_SE_SLOT.get(params[0] if params else -1)
             if slot is None:
                 self._unsupported[code] += 1
-                emit(MV_COMMENT, [f"[rm2k2mv] system sound {params} has no MV slot"])
+                emit(MV_COMMENT, [f"[MakerBridge] system sound {params} has no MV slot"])
             else:
                 sound = _audio(text, list(params[1:]), bgm=False)
                 emit(MV_SCRIPT, [f"$gameSystem.rm2kSetSound({slot}, "
@@ -866,7 +866,7 @@ class Translator:
             emit(MV_SCRIPT, ["$gameSystem.replayBgm();"])
         else:
             self._unsupported[code] += 1
-            emit(MV_COMMENT, [f"[rm2k2mv] unsupported RM2k command {code}"])
+            emit(MV_COMMENT, [f"[MakerBridge] unsupported RM2k command {code}"])
             detail = f"params={params}" + (f" string={text!r}" if text else "")
             out.append({"code": MV_COMMENT_LINE, "indent": indent,
                         "parameters": [detail]})
@@ -1029,7 +1029,7 @@ class Translator:
         if op > 5:
             # 6..10 are the Maniac Patch's bit operations.
             self._unsupported[CONTROL_VARS] += 1
-            emit(MV_COMMENT, [f"[rm2k2mv] Maniac Patch variable operation {op} "
+            emit(MV_COMMENT, [f"[MakerBridge] Maniac Patch variable operation {op} "
                               f"(params={params})"])
             return
         if mode == 2:
@@ -1064,7 +1064,7 @@ class Translator:
             mapped = self.ids.items.get(a)
             if not mapped:
                 self._unsupported[CONTROL_VARS] += 1
-                emit(MV_COMMENT, [f"[rm2k2mv] unknown item {a} in variable op"])
+                emit(MV_COMMENT, [f"[MakerBridge] unknown item {a} in variable op"])
                 return
             if b == 1:
                 script(self._equipped_count_js(mapped))
@@ -1081,7 +1081,7 @@ class Translator:
                 script(self._operand_js(5, a, b))
             else:
                 self._unsupported[CONTROL_VARS] += 1
-                emit(MV_COMMENT, [f"[rm2k2mv] actor property {b} in variable op "
+                emit(MV_COMMENT, [f"[MakerBridge] actor property {b} in variable op "
                                   f"(params={params})"])
         elif operand_type == 6:                     # character position / facing
             prop = _CHARACTER_PROP.get(b)
@@ -1095,7 +1095,7 @@ class Translator:
                 emit(MV_VARIABLES, [start, end, op, 3, 5, self._event_ref(a), prop])
             else:
                 self._unsupported[CONTROL_VARS] += 1
-                emit(MV_COMMENT, [f"[rm2k2mv] character property {b} in variable op "
+                emit(MV_COMMENT, [f"[MakerBridge] character property {b} in variable op "
                                   f"(params={params})"])
         elif operand_type == 7:                     # misc game data
             # Chosen by the first value (EasyRPG ControlVariables::Other(p[5])).
@@ -1106,13 +1106,13 @@ class Translator:
                 script(_OTHER_JS[a])
             else:
                 self._unsupported[CONTROL_VARS] += 1
-                emit(MV_COMMENT, [f"[rm2k2mv] game data {a} in variable op "
+                emit(MV_COMMENT, [f"[MakerBridge] game data {a} in variable op "
                                   f"(params={params})"])
         elif operand_type == 8 and b in _ENEMY_FIELD:   # RM2003: an enemy
             script(self._operand_js(8, a, b))
         else:
             self._unsupported[CONTROL_VARS] += 1
-            emit(MV_COMMENT, [f"[rm2k2mv] variable operand type {operand_type} "
+            emit(MV_COMMENT, [f"[MakerBridge] variable operand type {operand_type} "
                               f"not translated (params={params})"])
 
     def _items(self, params, emit) -> None:
@@ -1127,7 +1127,7 @@ class Translator:
         mapped = self.ids.items.get(item_id)
         if mapped is None:
             self._unsupported[CHANGE_ITEMS] += 1
-            emit(MV_COMMENT, [f"[rm2k2mv] unknown RM2k item {item_id}"])
+            emit(MV_COMMENT, [f"[MakerBridge] unknown RM2k item {item_id}"])
             return
         kind, new_id = mapped
         code = {"item": MV_ITEMS, "weapon": MV_WEAPONS, "armor": MV_ARMORS}[kind]
@@ -1155,7 +1155,7 @@ class Translator:
             mapped = self.ids.items.get(item_id)
             if not mapped or mapped[0] == "item":
                 self._unsupported[CHANGE_EQUIPMENT] += 1
-                emit(MV_COMMENT, [f"[rm2k2mv] cannot equip RM2k item {item_id}"])
+                emit(MV_COMMENT, [f"[MakerBridge] cannot equip RM2k item {item_id}"])
                 return
             emit(MV_SCRIPT, [f"this.rm2kEquip({actors}, \"{mapped[0]}\", {mapped[1]});"])
         else:
@@ -1178,7 +1178,7 @@ class Translator:
                   f"$gameVariables.value({b}));"])
         else:
             self._unsupported[CALL_EVENT] += 1
-            emit(MV_COMMENT, [f"[rm2k2mv] call event mode {mode} "
+            emit(MV_COMMENT, [f"[MakerBridge] call event mode {mode} "
                               f"(params={params}) needs manual porting"])
 
     def _battle(self, text, params, emit, out, indent) -> None:
@@ -1243,7 +1243,7 @@ class Translator:
                              f"{json.dumps(track, ensure_ascii=False)});"])
         else:
             self._unsupported[CHANGE_SYSTEM_BGM] += 1
-            emit(MV_COMMENT, [f"[rm2k2mv] system music slot {slot} "
+            emit(MV_COMMENT, [f"[MakerBridge] system music slot {slot} "
                               f"({text!r}) has no MV counterpart"])
 
     def _exp_or_level(self, code, params, emit) -> None:
@@ -1583,7 +1583,7 @@ class Translator:
         else:
             # 3-5 are Maniac Patch forms; plain RPG_RT does nothing.
             self._unsupported[ERASE_PICTURE] += 1
-            emit(MV_COMMENT, [f"[rm2k2mv] Maniac Patch erase picture {params}"])
+            emit(MV_COMMENT, [f"[MakerBridge] Maniac Patch erase picture {params}"])
 
     def _move_event(self, params, emit) -> None:
         from ..lcf.model import decode_move_values
@@ -1597,7 +1597,7 @@ class Translator:
             commands = decode_move_values(params[4:])
         except IndexError:
             self._unsupported[MOVE_EVENT] += 1
-            emit(MV_COMMENT, [f"[rm2k2mv] unreadable inline move route {params}"])
+            emit(MV_COMMENT, [f"[MakerBridge] unreadable inline move route {params}"])
             return
         frequency = params[1] if len(params) > 1 else 8
         emit(MV_SET_MOVE_ROUTE,
@@ -1652,7 +1652,7 @@ class Translator:
                 if mv_code is None:
                     self._unsupported[MOVE_EVENT] += 1
                     steps.append({"code": 45, "parameters":
-                                  [f"/* rm2k2mv: move opcode {code} */"]})
+                                  [f"/* MakerBridge: move opcode {code} */"]})
                 else:
                     steps.append({"code": mv_code, "parameters": []})
         if jump is not None:                          # route ended mid-jump
@@ -1758,7 +1758,7 @@ class Translator:
 
     def _fallback_condition(self, params, emit) -> None:
         self._unsupported[CONDITIONAL] += 1
-        emit(MV_IF, [12, "true /* rm2k2mv: condition "
+        emit(MV_IF, [12, "true /* MakerBridge: condition "
                          f"{params} not translated */"])
 
 

@@ -1,6 +1,6 @@
 @echo off
 rem ---------------------------------------------------------------------------
-rem rm2k2mv - grafische Oberflaeche
+rem MakerBridge - grafische Oberflaeche
 rem
 rem Doppelklick genuegt: Projektordner waehlen, Zielordner waehlen, los.
 rem Fuer die Kommandozeile siehe run.bat.
@@ -13,7 +13,7 @@ if not exist "log" mkdir "log"
 rem pythonw startet ohne Konsolenfenster, python ist die Rueckfallebene.
 where pythonw >NUL 2>&1
 if %ERRORLEVEL%==0 (
-    start "" pythonw -X utf8 -m rm2k2mv gui
+    start "" pythonw -X utf8 -m makerbridge gui
 ) else (
-    python -X utf8 -m rm2k2mv gui
+    python -X utf8 -m makerbridge gui
 )

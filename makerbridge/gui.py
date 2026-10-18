@@ -83,7 +83,7 @@ def settings_path() -> str:
         base = os.environ.get("APPDATA") or os.path.expanduser("~")
     else:
         base = os.environ.get("XDG_CONFIG_HOME") or os.path.expanduser("~/.config")
-    return os.path.join(base, "rm2k2mv", "gui.json")
+    return os.path.join(base, "makerbridge", "gui.json")
 
 
 def load_settings() -> dict:
@@ -127,7 +127,7 @@ def describe_project(path: str, encoding: str) -> dict:
     english = project._english_engine(path, db)
     db["_english"] = english
     updated = project._major_updated(path, db, encoding)
-    engine = "RPG Maker 2003" if rm2k3 else "RPG Maker 2000"
+    engine = "RPG Maker 2003" if rm2k3 else "RPG Maker 2000 (experimentell, ungetestet)"
     if english:
         engine += " · 1.10+ (englisches Update)" if rm2k3 else " · 1.6x (englisches Update)"
     elif updated:
@@ -149,9 +149,11 @@ def describe_project(path: str, encoding: str) -> dict:
 def describe_template(path: str) -> str:
     from .mv import engine as engines
     if not path:
-        return "keine gefunden – bitte ein MV- oder MZ-Projekt wählen"
+        return "keine gefunden – bitte ein MZ-Projekt wählen"
     found = engines.detect(path) if os.path.isdir(path) else None
-    return found.label if found else "kein MV/MZ-Projekt"
+    if not found:
+        return "kein MV/MZ-Projekt"
+    return found.label if found.key == "mz" else found.label + " (experimentell, ungetestet)"
 
 
 # -- logging into the window -------------------------------------------------
@@ -312,8 +314,8 @@ class App(tk.Frame):
         header.pack(fill="x", padx=18, pady=(14, 6))
         titles = tk.Frame(header, bg=BG)
         titles.pack(side="left")
-        tk.Label(titles, text="rm2k2mv", bg=BG, fg=TEXT, font=self.f_title).pack(anchor="w")
-        tk.Label(titles, text="RPG Maker 2000 / 2003  →  RPG Maker MV / MZ",
+        tk.Label(titles, text="MakerBridge", bg=BG, fg=TEXT, font=self.f_title).pack(anchor="w")
+        tk.Label(titles, text="RPG Maker 2000 / 2003  →  RPG Maker MZ",
                  bg=BG, fg=MUTED, font=self.f_body).pack(anchor="w")
         ttk.Button(header, text="☕  Unterstützen", style="Coffee.TButton",
                    command=lambda: webbrowser.open(SUPPORT_URL)).pack(side="right")
@@ -346,7 +348,7 @@ class App(tk.Frame):
         out.grid(row=0, column=1, sticky="nsew", padx=(6, 0), pady=(0, 10))
         form = self._form(out.body)
         form.pack(fill="x")
-        self._path_row(form, "MV/MZ-Projekt", self.target, self._pick_target,
+        self._path_row(form, "MZ-Projekt", self.target, self._pick_target,
                        "das konvertierte Projekt, zum Öffnen im Editor")
         self._path_row(form, "Spielordner", self.game_dir, self._pick_game,
                        "hier landet die spielbare Version (optional)")
@@ -509,7 +511,7 @@ class App(tk.Frame):
             self._set_source(chosen)
 
     def _pick_target(self) -> None:
-        chosen = self._pick("Zielordner für das MV/MZ-Projekt")
+        chosen = self._pick("Zielordner für das MZ-Projekt")
         if chosen:
             self.target.set(chosen)
 
@@ -519,7 +521,7 @@ class App(tk.Frame):
             self.game_dir.set(chosen)
 
     def _pick_template(self) -> None:
-        chosen = self._pick("Ein RPG Maker MV- oder MZ-Projekt als Engine-Vorlage")
+        chosen = self._pick("Ein RPG Maker MZ-Projekt als Engine-Vorlage")
         if chosen:
             self.template.set(chosen)
 
@@ -651,7 +653,7 @@ class App(tk.Frame):
             root.addHandler(file_handler)
         except OSError:
             file_handler = None
-        log = logging.getLogger("rm2k2mv")
+        log = logging.getLogger("makerbridge")
         target = self.target.get().strip()
         failed = False
         done = 0
@@ -803,7 +805,7 @@ def main() -> int:
         print(f"Kein Fenster möglich ({exc}). Unter Linux fehlt vielleicht python3-tk "
               "oder eine grafische Sitzung.", file=sys.stderr)
         return 1
-    root.title("rm2k2mv – RPG Maker 2000/2003 → MV/MZ")
+    root.title("MakerBridge – RPG Maker 2000/2003 → MZ")
     root.configure(bg=BG)
     # Window size in "96 dpi pixels", grown with the screen's scaling.
     scale = max(1.0, float(root.tk.call("tk", "scaling")) / (96 / 72))
