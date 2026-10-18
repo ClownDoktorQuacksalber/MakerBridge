@@ -146,6 +146,17 @@ def describe_project(path: str, encoding: str) -> dict:
     }
 
 
+def missing_tools() -> str:
+    """What the audio step needs and the system lacks, for a hint in the window."""
+    from .audio import find_ffmpeg, find_fluidsynth, find_soundfont
+    missing = []
+    if not find_ffmpeg():
+        missing.append("ffmpeg (Musik umwandeln)")
+    if not (find_fluidsynth() and find_soundfont()):
+        missing.append("FluidSynth (MIDI-Musik)")
+    return " und ".join(missing)
+
+
 def describe_template(path: str) -> str:
     from .mv import engine as engines
     if not path:
@@ -369,6 +380,13 @@ class App(tk.Frame):
                 row=i, column=1, sticky="w", padx=(2, 12))
             tk.Label(grid, text=hint, bg=CARD, fg=MUTED, font=self.f_small).grid(
                 row=i, column=2, sticky="w")
+        missing = missing_tools()
+        if missing:
+            setup = ("„MakerBridge.bat setup“" if sys.platform.startswith("win")
+                     else "„./MakerBridge.sh setup“")
+            tk.Label(grid, text=f"⚠  {missing} fehlt – starte {setup}, um es zu installieren.",
+                     bg=CARD, fg=WARN, font=self.f_small).grid(
+                         row=len(STEPS), column=0, columnspan=3, sticky="w", pady=(8, 0))
         side = tk.Frame(steps.body, bg=CARD)
         side.pack(side="left", fill="both", expand=True, padx=(28, 0))
         ttk.Checkbutton(side, text="Erweiterte Einstellungen", style="Plain.TCheckbutton",

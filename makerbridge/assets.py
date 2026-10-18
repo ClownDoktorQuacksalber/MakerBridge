@@ -326,7 +326,7 @@ def copy_audio(project, target: str, log, me_names=()) -> dict[str, int]:
         # Only files no earlier "transcode" run has turned into ogg yet.
         log.warning("%d audio file(s) are midi/wav/mp3/wma without an ogg version - "
                     "MV only plays ogg and m4a. Run the transcode step "
-                    "(run.bat transcode) to convert them.", len(needs_transcode))
+                    "(MakerBridge.bat transcode) to convert them.", len(needs_transcode))
         for name in needs_transcode[:10]:
             log.debug("    needs transcoding: %s", name)
     return counts

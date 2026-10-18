@@ -5,3 +5,6 @@ dump/
 # Python caches
 __pycache__/
 *.pyc
+
+# MakerBridge's own Python environment, made on the first start
+.venv/
