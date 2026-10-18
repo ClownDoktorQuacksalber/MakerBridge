@@ -181,3 +181,34 @@ docs\FORMAT.md        the reverse-engineered format, with the evidence
 `mv\tiles.py`: it records how each chunk id, tile range and command code was
 established against real data, so a "fix" that contradicts it is probably
 wrong.
+
+## License
+
+rm2k2mv is free software: you can redistribute it and/or modify it under the
+terms of the GNU General Public License as published by the Free Software
+Foundation, either version 3 of the License, or (at your option) any later
+version. It is distributed in the hope that it will be useful, but WITHOUT
+ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+FOR A PARTICULAR PURPOSE. See `LICENSE` for the full text.
+
+Parts of rm2k2mv are derived from [EasyRPG Player](https://github.com/EasyRPG/Player)
+(GPL-3.0) and follow [liblcf](https://github.com/EasyRPG/liblcf) (MIT); the
+FluidSynth, libsndfile and SDL binaries in `tools\fluidsynth\` come under their
+own licenses. `THIRD_PARTY_NOTICES.md` lists them all, with the license texts
+in `licenses\`.
+
+## Not affiliated
+
+rm2k2mv is an independent fan project. It is not made, endorsed or supported
+by KADOKAWA, Gotcha Gotcha Games or Enterbrain. "RPG Maker" is a trademark of
+its owners and is used here only to say which file formats rm2k2mv reads and
+writes. rm2k2mv contains no files of any RPG Maker product; to build a
+playable game you need your own copy of RPG Maker MV or MZ.
+
+## Your games, your rights
+
+rm2k2mv converts a game; it does not grant any rights to it. Graphics, music,
+story and code of a game belong to their authors. Convert and publish only
+games you made yourself or have permission to use, and check the licenses of
+any RTP or third-party resources the game contains before you release the
+converted version.
