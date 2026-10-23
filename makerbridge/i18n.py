@@ -135,10 +135,10 @@ TEXTS: dict[str, dict[str, str]] = {
                             "ここで選んでください。エンジン（js/、index.html）はそこから"
                             "取り込まれます。これが無いとプロジェクトは起動せず、"
                             "Game.exe も作成されません。"},
-    "template_mv": {"en": "✓  {label} (experimental, untested)",
-                    "de": "✓  {label} (experimentell, ungetestet)",
-                    "es": "✓  {label} (experimental, sin probar)",
-                    "ja": "✓  {label}（実験的・未検証）"},
+    "template_mv": {"en": "✓  {label} · a fresh, empty MV project is ideal",
+                    "de": "✓  {label} · ein frisches, leeres MV-Projekt ist ideal",
+                    "es": "✓  {label} · lo ideal es un proyecto de MV nuevo y vacío",
+                    "ja": "✓  {label} · 新しい空の MV プロジェクトが最適です"},
     "template_ok": {"en": "✓  {label} · a fresh, empty MZ project is ideal",
                     "de": "✓  {label} · ein frisches, leeres MZ-Projekt ist ideal",
                     "es": "✓  {label} · lo ideal es un proyecto de MZ nuevo y vacío",

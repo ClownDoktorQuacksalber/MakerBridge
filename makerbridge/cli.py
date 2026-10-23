@@ -198,7 +198,7 @@ def build_parser(tool_root: str) -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(
         prog="makerbridge",
         description="MakerBridge: convert an RPG Maker 2000/2003 game to an RPG "
-                    "Maker MZ project (2003 tested; 2000 and MV experimental).")
+                    "Maker MZ or MV project (2003 tested; 2000 experimental).")
     p.add_argument("--encoding", default=project.DEFAULT_ENCODING,
                    help="text encoding of the RM2k project (default: cp1252)")
     p.add_argument("-v", "--verbose", action="store_true")
