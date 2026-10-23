@@ -104,7 +104,9 @@ def find_template(search_root: str, wanted: Engine | None = None,
     Folders in ``exclude`` (the conversion target) and everything below
     them are never considered: copying a project onto itself fails, and a
     previous output is not a template.  Unconverted editor projects are
-    preferred over deployed games, and those over earlier conversions."""
+    preferred over deployed games, and those over earlier conversions; MZ
+    is preferred over MV at each of those levels, since MZ is the target
+    the converter is tested against."""
     excluded = [e for e in exclude if e]
     best: dict[int, str] = {}
     for root, dirs, files in os.walk(search_root):
@@ -116,7 +118,9 @@ def find_template(search_root: str, wanted: Engine | None = None,
             continue
         engine = detect(root)
         if engine and (wanted is None or engine is wanted):
-            rank = (2 if is_converted(root) else 0) + (0 if is_editor_project(root, engine) else 1)
+            rank = ((4 if is_converted(root) else 0)
+                    + (0 if is_editor_project(root, engine) else 2)
+                    + (0 if engine is MZ else 1))
             best.setdefault(rank, root)
             if rank == 0:
                 return root

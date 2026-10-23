@@ -62,10 +62,11 @@ class Rm2kProject:
                 entries = os.listdir(directory)
             except OSError:
                 entries = []
-            for entry in entries:
-                stem, ext = os.path.splitext(entry)
-                if stem.lower() == target and (not exts or ext.lower() in exts):
-                    return os.path.join(directory, entry)
+            matches = [entry for entry in entries
+                       if os.path.splitext(entry)[0].lower() == target
+                       and (not exts or os.path.splitext(entry)[1].lower() in exts)]
+            if matches:
+                return os.path.join(directory, min(matches, key=lambda e: _ext_rank(e, exts)))
         for entry, path in self._rtp_index().get(kind.lower(), {}).get(target, []):
             if not exts or os.path.splitext(entry)[1].lower() in exts:
                 return path
@@ -90,8 +91,19 @@ class Rm2kProject:
                     continue
                 if exts and os.path.splitext(entry)[1].lower() not in exts:
                     continue
+                stem = os.path.splitext(entry)[0].lower()
+                if stem in own:
+                    # The same name twice (Patrone.png next to an older
+                    # Patrone.xyz): both would end up in one MV file, the
+                    # later overwriting the one RPG_RT shows.  Keep the
+                    # extension that comes first in ``exts``.
+                    at = next(i for i, (e, _) in enumerate(out)
+                              if os.path.splitext(e)[0].lower() == stem)
+                    if _ext_rank(entry, exts) < _ext_rank(out[at][0], exts):
+                        out[at] = (entry, full)
+                    continue
                 out.append((entry, full))
-                own.add(os.path.splitext(entry)[0].lower())
+                own.add(stem)
         index = self._rtp_index().get(kind, {})
         if index:
             referenced = self.referenced_names()
@@ -160,6 +172,12 @@ class Rm2kProject:
 _HEX = re.compile(r"(?:[0-9a-fA-F]{2}){2,}")
 # RM2k "Move Event" (11330) keeps its route inline as one integer per byte.
 MOVE_EVENT_CODE = 11330
+
+
+def _ext_rank(entry: str, exts) -> int:
+    """Position of the file's extension in ``exts``: lower is preferred."""
+    ext = os.path.splitext(entry)[1].lower()
+    return list(exts).index(ext) if exts and ext in exts else len(exts or ())
 
 
 def _corpus(project, encoding: str) -> bytes:

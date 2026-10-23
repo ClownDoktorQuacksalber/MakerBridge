@@ -337,6 +337,12 @@ class Translator:
         index = 0
         while index < len(commands):
             index = self._one(commands, index, out, where)
+        # RM2k ends every list with a code 0 of its own.  Kept next to MV's
+        # end it makes an empty page two entries long, and MV starts any
+        # page longer than one: an empty autorun page then runs forever and
+        # the hero cannot move, where RPG_RT does nothing.
+        while out and out[-1]["code"] == 0 and out[-1]["indent"] == 0:
+            out.pop()
         out.append({"code": 0, "indent": 0, "parameters": []})
         return out
 

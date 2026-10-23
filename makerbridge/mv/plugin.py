@@ -213,7 +213,14 @@ BATTLE_JS = r'''    //==========================================================
 
     var _troopIncreaseTurn = Game_Troop.prototype.increaseTurn;
     Game_Troop.prototype.increaseTurn = function() {
+        // MV's own turn lets every page run again; a page that already ran
+        // in this RPG_RT turn would then run twice (RM2003 counts a turn per
+        // action, so the first one is still going when the heroes' orders
+        // are in).  Only nextRm2kTurn clears them.
+        var flags = {};
+        for (var key in this._eventFlags) { flags[key] = this._eventFlags[key]; }
         _troopIncreaseTurn.apply(this, arguments);
+        this._eventFlags = flags;
         if (!RM2K.rm2k3 && timeProgress()) { nextRm2kTurn(); }
     };
 
@@ -685,11 +692,35 @@ BATTLE_JS = r'''    //==========================================================
         if (this._childInterpreter) { this._childInterpreter._rm2kParallel = !!this._rm2kParallel; }
     };
 
+    // Clearing the wait is not enough: command201 returns false, which ends
+    // the frame, and from the next one on Game_Interpreter.update stops at
+    // SceneManager.isSceneChanging() before every command.  So the event
+    // goes on in this frame, before Scene_Map starts the transfer.  MV's
+    // command201 steps past itself and executeCommand steps once more after
+    // a true, so the step is taken back; MZ steps only in executeCommand.
     var _parallelTeleport = Game_Interpreter.prototype.command201;
     Game_Interpreter.prototype.command201 = function() {
+        var index = this._index;
         var result = _parallelTeleport.apply(this, arguments);
-        if (this._rm2kParallel && this._waitMode === 'transfer') { this._waitMode = ''; }
+        if (this._rm2kParallel && this._waitMode === 'transfer') {
+            this._waitMode = '';
+            if (this._index !== index) {
+                this._index = index;
+                return true;
+            }
+        }
         return result;
+    };
+
+    // Backspace deletes a letter in the name input.  MV maps no key to it -
+    // only Cancel (Escape, X, Insert, numpad 0) goes back.
+    if (Input.keyMapper[8] === undefined) { Input.keyMapper[8] = 'rm2kBackspace'; }
+    var _nameInputHandling = Window_NameInput.prototype.processHandling;
+    Window_NameInput.prototype.processHandling = function() {
+        _nameInputHandling.apply(this, arguments);
+        if (this.isOpen() && this.active && Input.isRepeated('rm2kBackspace')) {
+            this.processBack();
+        }
     };
 
     // "Erase event" stops a parallel event at once in RPG_RT (EasyRPG
@@ -949,7 +980,8 @@ PICTURES_JS = r'''    //========================================================
                                : params[6];
         var opacity = ext.opacityVar ? transToOpacity($gameVariables.value(ext.opacityVar))
                                      : params[8];
-        $gameScreen.showPicture(id, name, params[2], xy[0], xy[1], zoom, zoom, opacity, 0);
+        $gameScreen.showPicture(id, name, params[2], xy[0], xy[1], zoom, zoom, opacity, 0,
+                                !!ext.fixed && !$gameParty.inBattle());
         var picture = $gameScreen.picture(id);
         if (picture) { picture.rm2kSetup(id, ext); }
         return true;
@@ -1341,8 +1373,12 @@ PICTURES_JS = r'''    //========================================================
         var layer = this._rm2kAnimations;
         var source = this instanceof Spriteset_Map ? this._tilemap : this._battleField;
         if (!layer || !source) { return; }
-        layer.x = source.x;
-        layer.y = source.y;
+        // The tilemap sits in the base sprite, which a small map scales.
+        var base = source.parent === this._baseSprite ? this._baseSprite : null;
+        layer.scale.x = base ? base.scale.x : 1;
+        layer.scale.y = base ? base.scale.y : 1;
+        layer.x = (base ? base.x : 0) + source.x * layer.scale.x;
+        layer.y = (base ? base.y : 0) + source.y * layer.scale.y;
         if (layer.width !== source.width || layer.height !== source.height) {
             layer.setFrame(0, 0, source.width, source.height);
         }
@@ -1351,8 +1387,36 @@ PICTURES_JS = r'''    //========================================================
             if (isAnimationSprite(child)) {
                 source.removeChild(child);
                 layer.addChild(child);
+                child._rm2kSource = source;
                 i--;
             }
+        }
+    };
+
+    // MV places an animation by its target plus, when the animation sits in
+    // the target's grandparent, the target's parent.  A hero's target is the
+    // main sprite inside Sprite_Actor, so once moved to the layer above the
+    // hero's own position is lost and the animation lands in the top left
+    // corner.  Add what lies between the target and the old container.
+    var AnimationSprite = typeof Sprite_AnimationMV !== 'undefined' ?
+        Sprite_AnimationMV : Sprite_Animation;
+    var _animUpdatePosition = AnimationSprite.prototype.updatePosition;
+    AnimationSprite.prototype.updatePosition = function() {
+        _animUpdatePosition.apply(this, arguments);
+        var source = this._rm2kSource;
+        var target = this._target || (this._targets && this._targets[0]);
+        if (!source || !target || !this._animation || this._animation.position === 3) {
+            return;
+        }
+        var x = 0, y = 0, node = target.parent;
+        while (node && node !== source) {
+            x += node.x;
+            y += node.y;
+            node = node.parent;
+        }
+        if (node === source) {
+            this.x += x;
+            this.y += y;
         }
     };
 
@@ -1439,6 +1503,16 @@ PICTURES_JS = r'''    //========================================================
             if (home && home.field) {
                 sprite.x -= parent.x;
                 sprite.y -= parent.y;
+            }
+            if (home && (parent === this._tilemap || parent === this._baseSprite)) {
+                // Screen positions, inside a base sprite a small map scales.
+                var base = this._baseSprite.scale;
+                if (base.x !== 1 || base.y !== 1) {
+                    sprite.x /= base.x;
+                    sprite.y /= base.y;
+                    sprite.scale.x /= base.x;
+                    sprite.scale.y /= base.y;
+                }
             }
             this.rm2kPictureScreen(sprite, home);
         }
@@ -1542,12 +1616,88 @@ TEMPLATE = """//================================================================
     // RM2k database, written by the converter.
     var RM2K = {data};
 
+    // The zoom a picture is enlarged by.  One fixed to the map belongs to
+    // the map's 16-pixel grid, which MV draws at 48: it grows with the
+    // tiles, not with the screen, or a light map drawn over the whole map
+    // shrinks against it and its lights miss the lamps.  Its position stays
+    // in screen units, the ones rm2kScreenPos hands out.
+    function pictureZoom(fixed) {{
+        if (!fixed || mapFitsRm2kScreen($gameMap)) {{ return [SCALE_X, SCALE_Y]; }}
+        return [$gameMap.tileWidth() / 16, $gameMap.tileHeight() / 16];
+    }}
+
+    //-----------------------------------------------------------------------
+    // A map no bigger than RM2k's screen (20x15 tiles, the editor's
+    // smallest) never scrolls in RPG_RT: map and screen are one, and games
+    // draw light, fog and stills over the screen to fit the room.  MV shows
+    // 17x13 of its 48-pixel tiles and scrolls, so those pictures miss the
+    // room.  Such a map is drawn whole instead, shrunk onto the screen by
+    // the same 2.55 x 2.6 the pictures are enlarged by.  Looping maps
+    // scroll in RPG_RT too and stay as they are.
+    //-----------------------------------------------------------------------
+    var RM2K_TILES_X = 20, RM2K_TILES_Y = 15;
+
+    function mapFitsRm2kScreen(map) {{
+        return !!$dataMap && map.width() <= RM2K_TILES_X && map.height() <= RM2K_TILES_Y &&
+               !map.isLoopHorizontal() && !map.isLoopVertical();
+    }}
+
+    // How much the map's sprites are scaled: 1 unless the map fits.
+    function rm2kMapZoom() {{
+        if (!mapFitsRm2kScreen($gameMap)) {{ return [1, 1]; }}
+        return [SCALE_X * 16 / $gameMap.tileWidth(), SCALE_Y * 16 / $gameMap.tileHeight()];
+    }}
+
+    var _fitScreenTileX = Game_Map.prototype.screenTileX;
+    Game_Map.prototype.screenTileX = function() {{
+        return mapFitsRm2kScreen(this) ? RM2K_TILES_X : _fitScreenTileX.apply(this, arguments);
+    }};
+
+    var _fitScreenTileY = Game_Map.prototype.screenTileY;
+    Game_Map.prototype.screenTileY = function() {{
+        return mapFitsRm2kScreen(this) ? RM2K_TILES_Y : _fitScreenTileY.apply(this, arguments);
+    }};
+
+    // Clicks and taps land on the shrunk map.
+    var _fitCanvasToMapX = Game_Map.prototype.canvasToMapX;
+    Game_Map.prototype.canvasToMapX = function(x) {{
+        return _fitCanvasToMapX.call(this, x / rm2kMapZoom()[0]);
+    }};
+
+    var _fitCanvasToMapY = Game_Map.prototype.canvasToMapY;
+    Game_Map.prototype.canvasToMapY = function(y) {{
+        return _fitCanvasToMapY.call(this, y / rm2kMapZoom()[1]);
+    }};
+
+    // The panorama and the tiles live in the base sprite, which is scaled;
+    // they have to cover the screen before it is.
+    var _fitCreateParallax = Spriteset_Map.prototype.createParallax;
+    Spriteset_Map.prototype.createParallax = function() {{
+        _fitCreateParallax.apply(this, arguments);
+        var zoom = rm2kMapZoom();
+        this._parallax.move(0, 0, Math.ceil(Graphics.width / zoom[0]),
+                            Math.ceil(Graphics.height / zoom[1]));
+    }};
+
+    var _fitCreateTilemap = Spriteset_Map.prototype.createTilemap;
+    Spriteset_Map.prototype.createTilemap = function() {{
+        _fitCreateTilemap.apply(this, arguments);
+        var zoom = rm2kMapZoom();
+        if (zoom[0] === 1 && zoom[1] === 1) {{ return; }}
+        this._tilemap.width += Math.ceil(Graphics.width / zoom[0]) - Graphics.width;
+        this._tilemap.height += Math.ceil(Graphics.height / zoom[1]) - Graphics.height;
+        this._baseSprite.scale.x = zoom[0];
+        this._baseSprite.scale.y = zoom[1];
+    }};
+
     var _showPicture = Game_Screen.prototype.showPicture;
     Game_Screen.prototype.showPicture = function(pictureId, name, origin, x, y,
-                                                 scaleX, scaleY, opacity, blendMode) {{
+                                                 scaleX, scaleY, opacity, blendMode,
+                                                 fixed) {{
+        var zoom = pictureZoom(fixed);
         _showPicture.call(this, pictureId, name, origin,
                           Math.round(x * SCALE_X), Math.round(y * SCALE_Y),
-                          scaleX * SCALE_X, scaleY * SCALE_Y,
+                          scaleX * zoom[0], scaleY * zoom[1],
                           opacity, blendMode);
     }};
 
@@ -1560,9 +1710,10 @@ TEMPLATE = """//================================================================
         var picture = this.picture(pictureId);
         var dx = anchorShift(picture, false);
         var dy = anchorShift(picture, true);
+        var zoom = pictureZoom(picture && picture._rm2kAnchor && !$gameParty.inBattle());
         _movePicture.call(this, pictureId, origin,
                           Math.round(x * SCALE_X) + dx, Math.round(y * SCALE_Y) + dy,
-                          scaleX * SCALE_X, scaleY * SCALE_Y,
+                          scaleX * zoom[0], scaleY * zoom[1],
                           opacity, blendMode, duration, easingType || 0);
     }};
 
@@ -1686,7 +1837,7 @@ TEMPLATE = """//================================================================
         var o = $gameSystem._rm2kMessage || [false, 2, false, false];
         if ($gameParty.inBattle()) {{ return RM2K.rm2k3 ? 0 : 2; }}
         if (o[2]) {{ return o[1]; }}
-        var y = $gamePlayer.screenY() * 240 / Graphics.height;
+        var y = $gamePlayer.screenY() * rm2kMapZoom()[1] * 240 / Graphics.height;
         if (o[1] === 0) {{ return y > 112 ? 0 : 2; }}
         if (o[1] === 1) {{ return y <= 112 ? 2 : (y >= 160 ? 0 : 1); }}
         return y >= 160 ? 0 : 2;
@@ -1748,6 +1899,22 @@ TEMPLATE = """//================================================================
         _updateFlashLoop.apply(this, arguments);
         var loop = this._rm2kFlashLoop;
         if (loop && this._flashDuration <= 0) {{ this.startFlash(loop[0].slice(), loop[1]); }}
+    }};
+
+    // A single Flash Screen replaces a repeating one, and moving to another
+    // map ends any flash (EasyRPG Game_Screen::FlashOnce, OnMapChange).
+    var _command224 = Game_Interpreter.prototype.command224;
+    Game_Interpreter.prototype.command224 = function() {{
+        $gameScreen._rm2kFlashLoop = null;
+        return _command224.apply(this, arguments);
+    }};
+
+    var _flashTransfer = Game_Player.prototype.performTransfer;
+    Game_Player.prototype.performTransfer = function() {{
+        if (this.isTransferring() && this._newMapId !== $gameMap.mapId()) {{
+            $gameScreen.rm2kFlashEnd();
+        }}
+        _flashTransfer.apply(this, arguments);
     }};
 
     // RM2k commands can name the boat, ship and airship as characters; the
@@ -2314,8 +2481,8 @@ TEMPLATE = """//================================================================
         var character = this.character(id);
         if (!character) {{ return 0; }}
         return vertical ?
-            Math.round((character.screenY() + character.shiftY()) / SCALE_Y) :
-            Math.round(character.screenX() / SCALE_X);
+            Math.round((character.screenY() + character.shiftY()) * rm2kMapZoom()[1] / SCALE_Y) :
+            Math.round(character.screenX() * rm2kMapZoom()[0] / SCALE_X);
     }};
 
     //-----------------------------------------------------------------------
@@ -2812,34 +2979,145 @@ TEMPLATE = """//================================================================
         this.showNormalAnimation(targets, subject.attackAnimationId1(), false);
     }};
 
+    // MV repeats each target in place (A A B B); RM2003 deals a hit to
+    // every target before the next hit (A B A B), so it goes in rounds.
+    function rm2kHitRounds(targets) {{
+        var rounds = [];
+        targets.forEach(function(target) {{
+            var i = 0;
+            while (rounds[i] && rounds[i].indexOf(target) >= 0) {{ i++; }}
+            (rounds[i] = rounds[i] || []).push(target);
+        }});
+        return [].concat.apply([], rounds);
+    }}
+
     var _startActionHits = BattleManager.startAction;
     BattleManager.startAction = function() {{
         _startActionHits.apply(this, arguments);
-        this._rm2kHits = {{action: this._action, done: [], shown: false}};
+        if (RM2K.rm2k3) {{ this._targets = rm2kHitRounds(this._targets); }}
+        this._rm2kHits = {{action: this._action, done: [], shown: false, rounds: 0,
+                           animated: this._targets.slice()}};
+    }};
+
+    // RM2003: a hit aimed at an enemy who has fallen in the meantime goes
+    // to the next one still standing, so a hero's second weapon is not
+    // wasted on a corpse.
+    BattleManager.rm2kRetarget = function() {{
+        var target = this._targets[0], action = this._action;
+        if (!target || target.isAlive() || !action.isForOpponent() || action.isForAll()) {{
+            return;
+        }}
+        var members = target.friendsUnit().members();
+        var start = members.indexOf(target), next = null;
+        for (var i = 1; i <= members.length && !next; i++) {{
+            var member = members[(start + i) % members.length];
+            if (member.isAlive()) {{ next = member; }}
+        }}
+        if (!next) {{ return; }}
+        for (var j = 0; j < this._targets.length; j++) {{
+            if (this._targets[j] === target) {{ this._targets[j] = next; }}
+        }}
+    }};
+
+    // The targets the next hit goes to: RM2003 strikes all targets of a
+    // round at once, RM2000 one after the other.
+    BattleManager.rm2kHitRound = function() {{
+        if (!RM2K.rm2k3) {{ return this._targets.slice(0, 1); }}
+        var round = [];
+        for (var i = 0; i < this._targets.length && round.indexOf(this._targets[i]) < 0; i++) {{
+            round.push(this._targets[i]);
+        }}
+        return round;
     }};
 
     // The next hit waits until the previous one's messages and damage are
     // through (BattleManager is busy until then); a repeated hit first
     // plays its animation, which keeps it busy until that has finished.
+    // So does a first hit on a target the opening animation missed out.
     var _updateActionHits = BattleManager.updateAction;
     BattleManager.updateAction = function() {{
-        var target = this._targets[0];
         var hits = this._rm2kHits;
-        if (target && hits && hits.action === this._action) {{
-            var hit = hits.done.filter(function(t) {{ return t === target; }}).length;
-            if (hit > 0 && !hits.shown && target.isAlive()) {{
-                hits.shown = true;
-                var id = rm2kHitAnimation(this._subject, this._action, hit);
-                if (id > 0) {{
-                    this._logWindow.showNormalAnimation([target], id, false);
-                    return;
-                }}
-            }}
-            hits.shown = false;
-            hits.done.push(target);
+        if (!this._targets.length || !hits || hits.action !== this._action) {{
+            return _updateActionHits.apply(this, arguments);
         }}
-        _updateActionHits.apply(this, arguments);
+        if (RM2K.rm2k3) {{ this.rm2kRetarget(); }}
+        var round = this.rm2kHitRound();
+        if (!hits.shown) {{
+            var again = round.filter(function(target) {{
+                return target.isAlive() &&
+                    (hits.done.indexOf(target) >= 0 || hits.animated.indexOf(target) < 0);
+            }});
+            var hit = RM2K.rm2k3 ? hits.rounds :
+                hits.done.filter(function(t) {{ return t === round[0]; }}).length;
+            var id = again.length ? rm2kHitAnimation(this._subject, this._action, hit) : 0;
+            if (id > 0) {{
+                hits.shown = true;
+                this._logWindow.showNormalAnimation(again, id, false);
+                return;
+            }}
+        }}
+        hits.shown = false;
+        hits.rounds++;
+        round.forEach(function(target) {{
+            this._targets.splice(this._targets.indexOf(target), 1);
+            hits.done.push(target);
+            this.invokeAction(this._subject, target);
+        }}, this);
     }};
+
+    //-----------------------------------------------------------------------
+    // RM2003 has no battle log for results: damage is a number over the
+    // battler, and the next action follows without a pause for reading.
+    // The log's lines and waits for an action's results are left out;
+    // popups, sounds and collapses stay.  The action's name still shows.
+    //-----------------------------------------------------------------------
+    var QUIET_LOG_METHODS = {{addText: true, wait: true, waitForNewLine: true}};
+
+    var _displayActionResults = Window_BattleLog.prototype.displayActionResults;
+    Window_BattleLog.prototype.displayActionResults = function(subject, target) {{
+        if (!RM2K.rm2k3) {{ return _displayActionResults.apply(this, arguments); }}
+        this._rm2kQuiet = true;
+        try {{
+            _displayActionResults.apply(this, arguments);
+        }} finally {{
+            this._rm2kQuiet = false;
+        }}
+    }};
+
+    var _logPush = Window_BattleLog.prototype.push;
+    Window_BattleLog.prototype.push = function(methodName) {{
+        if (this._rm2kQuiet && QUIET_LOG_METHODS[methodName]) {{ return; }}
+        _logPush.apply(this, arguments);
+    }};
+
+    // MV runs one queued log method per frame; the popups of a hit on
+    // eight enemies would then trickle in.  Methods that do not wait run
+    // in the same frame.
+    var _logUpdate = Window_BattleLog.prototype.update;
+    Window_BattleLog.prototype.update = function() {{
+        _logUpdate.apply(this, arguments);
+        if (!RM2K.rm2k3) {{ return; }}
+        for (var i = 0; i < 100 && this._methods.length > 0 &&
+                        !this._waitCount && !this._waitMode; i++) {{
+            this.callNextMethod();
+        }}
+    }};
+
+    // RM2003 plays an animation on all its targets at once; MV (battle
+    // log) and MZ (spriteset) start it twelve frames later on each further
+    // target.
+    if (Window_BattleLog.prototype.animationNextDelay) {{
+        var _logAnimationNextDelay = Window_BattleLog.prototype.animationNextDelay;
+        Window_BattleLog.prototype.animationNextDelay = function() {{
+            return RM2K.rm2k3 ? 0 : _logAnimationNextDelay.apply(this, arguments);
+        }};
+    }}
+    if (typeof Spriteset_Base !== 'undefined' && Spriteset_Base.prototype.animationNextDelay) {{
+        var _spritesetAnimationNextDelay = Spriteset_Base.prototype.animationNextDelay;
+        Spriteset_Base.prototype.animationNextDelay = function() {{
+            return RM2K.rm2k3 ? 0 : _spritesetAnimationNextDelay.apply(this, arguments);
+        }};
+    }}
 
     //-----------------------------------------------------------------------
     // Battle helpers.
@@ -3249,6 +3527,38 @@ TEMPLATE = """//================================================================
     Game_Action.prototype.needsSelection = function() {{
         if (this.isAttack() && weaponFlag(this.subject(), 'rm2kAttackAll')) {{ return false; }}
         return _needsSelection.apply(this, arguments);
+    }};
+
+    // MV's Attack command always opens the enemy list; skip it as the
+    // skill and item menus do when there is nothing to choose.
+    var _commandAttack = Scene_Battle.prototype.commandAttack;
+    Scene_Battle.prototype.commandAttack = function() {{
+        var actor = BattleManager.actor();
+        if (actor && weaponFlag(actor, 'rm2kAttackAll')) {{
+            BattleManager.inputtingAction().setAttack();
+            this.selectNextCommand();
+            return;
+        }}
+        _commandAttack.apply(this, arguments);
+    }};
+
+    // MV puts the ally cursor on the first hero.  Start on the hero using
+    // the item or skill instead, or on the first fallen one for a revive.
+    // MZ calls the same step startActorSelection.
+    var ACTOR_SELECTION = Scene_Battle.prototype.startActorSelection ?
+        'startActorSelection' : 'selectActorSelection';
+    var _selectActorSelection = Scene_Battle.prototype[ACTOR_SELECTION];
+    Scene_Battle.prototype[ACTOR_SELECTION] = function() {{
+        _selectActorSelection.apply(this, arguments);
+        var action = BattleManager.inputtingAction();
+        var members = $gameParty.battleMembers();
+        var index = -1;
+        if (action && action.isForDeadFriend()) {{
+            index = members.findIndex(function(m) {{ return m.isDead(); }});
+        }} else if (action) {{
+            index = members.indexOf(action.subject());
+        }}
+        if (index >= 0) {{ this._actorWindow.select(index); }}
     }};
 
     // A normal attack hits as in RPG_RT (EasyRPG Algo::CalcNormalAttackToHit):
