@@ -36,13 +36,12 @@ pictures wave and tint to how a battle counts its turns.
 | Source | Target | Status |
 |---|---|---|
 | RPG Maker 2003 | RPG Maker MZ | **tested** with a complete game (307 maps) |
-| RPG Maker 2003 | RPG Maker MV | experimental — supported in the code, not tested |
+| RPG Maker 2003 | RPG Maker MV | **tested** with the same game |
 | RPG Maker 2000 | RPG Maker MZ / MV | experimental — supported in the code, not tested |
 
 RPG Maker 2000 and 2003 share their file formats and most of their rules,
 and MakerBridge handles the differences between them (and between their
-runtime versions). Reports from RPG Maker 2000 games or MV targets are very
-welcome.
+runtime versions). Reports from RPG Maker 2000 games are very welcome.
 
 ## Highlights
 
@@ -232,8 +231,8 @@ end of its run, so nothing disappears silently.
 
 - **Patches.** Maniac Patch, DynRPG and other RPG_RT patches are not
   supported yet; their extra commands are listed as unsupported.
-- **MZ first.** Development and testing happen on RPG Maker MZ; MV is
-  supported, but tested less.
+- **MZ first.** Development happens on RPG Maker MZ; MV is tested with the
+  same game, but MZ is checked first.
 - A few rare RPG_RT details are still approximations: pictures that should
   ignore a screen flash (MZ flashes everything), skills that shift a target's
   element resistance, "keep events running while a message is shown", the
