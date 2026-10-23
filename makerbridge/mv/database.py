@@ -347,7 +347,7 @@ def _skills(db: dict, maps: IdMaps) -> list:
             "description": skill.get("description", ""),
             "note": "",
             "iconIndex": 0,
-            "animationId": _v(skill, "animation_id", 1),
+            "animationId": maps.animations.get(_v(skill, "animation_id", 1), 0),
             "damage": _skill_damage(skill, offensive),
             "effects": _skill_effects(skill, offensive, maps),
             # RM2k rolls the skill's own hit chance and nothing else.
@@ -534,7 +534,8 @@ def _items(db: dict, maps: IdMaps, log) -> tuple[list, list, list]:
             # Who may equip or use it; RM2kCompat.js checks the list.
             common.update(_users(item, maps, db))
         if table == "weapon":
-            weapons[index] = {**common, "animationId": _v(item, "animation_id", 1),
+            weapons[index] = {**common,
+                              "animationId": maps.animations.get(_v(item, "animation_id", 1), 0),
                               "etypeId": 1, "wtypeId": 1}
             # Attacking everyone, never missing and an SP price per swing
             # are not traits in MV; RM2kCompat.js reads these.
@@ -662,7 +663,10 @@ def _usable_item(item: dict, kind: int, common: dict, maps: IdMaps, db: dict) ->
     """Medicine, books, seeds, special (casts a skill) and switch items."""
     entry = {
         **common,
-        "animationId": _v(item, "animation_id", 1),
+        # Only weapons have an animation in RM2k; the field of any other
+        # item is a leftover (liblcf default 1) that RPG_RT never plays.
+        # A special item plays its skill's, set below.
+        "animationId": 0,
         "consumable": _v(item, "uses", 1) != 0,
         # RM2k items can last several uses; RM2kCompat.js counts them.
         "rm2kUses": _v(item, "uses", 1),
@@ -714,7 +718,7 @@ def _usable_item(item: dict, kind: int, common: dict, maps: IdMaps, db: dict) ->
         entry.update(damage=_skill_damage(skill, offensive),
                      effects=_skill_effects(skill, offensive, maps),
                      scope=_scope(_v(skill, "scope", 0)),
-                     animationId=_v(skill, "animation_id", 1),
+                     animationId=maps.animations.get(_v(skill, "animation_id", 1), 0),
                      # The skill's own hit chance (EasyRPG CalcSkillToHit).
                      successRate=_v(skill, "hit", 100),
                      occasion=1 if offensive else 0)

@@ -12,6 +12,8 @@ import json
 import os
 import re
 
+from .mv import engine as engines
+
 # Map001.json .. Map999.json, and Map1000.json+ for big projects.
 MAP_FILE = re.compile(r"^Map(\d{3,})\.json$")
 
@@ -80,7 +82,9 @@ def verify(target: str, log) -> int:
     if problems:
         log.warning("verification finished with %d problem(s)", problems)
     else:
-        log.info("verification passed: the project looks loadable by MV")
+        found = engines.detect(target)
+        log.info("verification passed: the project looks loadable by %s",
+                 found.label if found else "MV/MZ")
     return problems
 
 

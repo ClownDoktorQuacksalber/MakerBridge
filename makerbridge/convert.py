@@ -132,6 +132,8 @@ def convert_project(project, target: str, log, overwrite: bool = False,
         100, translator.max_picture_id,
         1000 if translator.picture_ids_from_variables else 0)
     plugin.write(target, log, data=runtime_data)
+    if engine:
+        _stamp_title(target, data_files["System.json"].get("gameTitle") or "", log)
     _report_unsupported(translator, log)
     log.info("MV project written to %s", target)
 
@@ -200,6 +202,41 @@ def _copy_runtime(engine, template: str, target: str, log) -> None:
             shutil.copytree(src, os.path.join(target, "img", folder),
                             dirs_exist_ok=True)
     log.info("copied the %s runtime (%s)", engine.label, ", ".join(copied))
+
+
+def _stamp_title(target: str, title: str, log) -> None:
+    """Put the game's title where the template's own name would show.
+
+    index.html and package.json come from the template, so the window and
+    the browser tab are otherwise named after whatever project that was."""
+    if not title:
+        return
+    page = os.path.join(target, "index.html")
+    if os.path.isfile(page):
+        with open(page, encoding="utf-8") as fh:
+            html = fh.read()
+        escaped = (title.replace("&", "&amp;").replace("<", "&lt;")
+                   .replace(">", "&gt;"))
+        stamped = re.sub(r"<title>.*?</title>", lambda _: f"<title>{escaped}</title>",
+                         html, count=1, flags=re.S)
+        if stamped != html:
+            with open(page, "w", encoding="utf-8") as fh:
+                fh.write(stamped)
+    manifest_path = os.path.join(target, "package.json")
+    if os.path.isfile(manifest_path):
+        try:
+            with open(manifest_path, encoding="utf-8") as fh:
+                manifest = json.load(fh)
+        except (OSError, ValueError):
+            return
+        # NW.js keeps the save data and settings under "name", so a name the
+        # template already has stays; only an empty one is filled in.
+        if not manifest.get("name"):
+            manifest["name"] = title
+        manifest.setdefault("window", {})["title"] = title
+        with open(manifest_path, "w", encoding="utf-8") as fh:
+            json.dump(manifest, fh, indent=4, ensure_ascii=False)
+    log.info("named the window and page %r", title)
 
 
 def _load_reference_system(template: str | None) -> dict | None:
