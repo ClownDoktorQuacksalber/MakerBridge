@@ -1568,13 +1568,15 @@ PICTURES_JS = r'''    //========================================================
         return d;
     }
 
+    // In screen pixels: a tile is drawn smaller on a zoomed map.
     function anchorShift(picture, vertical) {
         if (!picture || !picture._rm2kAnchor || $gameParty.inBattle()) { return 0; }
+        var zoom = rm2kMapZoom();
         return vertical ?
             scrolledSince($gameMap.displayY(), picture._rm2kAnchor[1], $gameMap.height(),
-                          $gameMap.isLoopVertical()) * $gameMap.tileHeight() :
+                          $gameMap.isLoopVertical()) * $gameMap.tileHeight() * zoom[1] :
             scrolledSince($gameMap.displayX(), picture._rm2kAnchor[0], $gameMap.width(),
-                          $gameMap.isLoopHorizontal()) * $gameMap.tileWidth();
+                          $gameMap.isLoopHorizontal()) * $gameMap.tileWidth() * zoom[0];
     }
 
     var _pictureX = Game_Picture.prototype.x;
@@ -1616,46 +1618,66 @@ TEMPLATE = """//================================================================
     // RM2k database, written by the converter.
     var RM2K = {data};
 
-    // The zoom a picture is enlarged by.  One fixed to the map belongs to
-    // the map's 16-pixel grid, which MV draws at 48: it grows with the
-    // tiles, not with the screen, or a light map drawn over the whole map
-    // shrinks against it and its lights miss the lamps.  Its position stays
-    // in screen units, the ones rm2kScreenPos hands out.
+    // The zoom a picture is enlarged by.  Under RPG_RT's view the map is
+    // drawn at the screen's scale, so every picture is too.  Under MV's own
+    // view a picture fixed to the map belongs to the map's 16-pixel grid,
+    // which MV draws at 48: it grows with the tiles, not with the screen,
+    // or a light map drawn over the whole map shrinks against it and its
+    // lights miss the lamps.
     function pictureZoom(fixed) {{
-        if (!fixed || mapFitsRm2kScreen($gameMap)) {{ return [SCALE_X, SCALE_Y]; }}
+        if (!fixed || usesRm2kView($gameMap)) {{ return [SCALE_X, SCALE_Y]; }}
         return [$gameMap.tileWidth() / 16, $gameMap.tileHeight() / 16];
     }}
 
     //-----------------------------------------------------------------------
-    // A map no bigger than RM2k's screen (20x15 tiles, the editor's
-    // smallest) never scrolls in RPG_RT: map and screen are one, and games
-    // draw light, fog and stills over the screen to fit the room.  MV shows
-    // 17x13 of its 48-pixel tiles and scrolls, so those pictures miss the
-    // room.  Such a map is drawn whole instead, shrunk onto the screen by
-    // the same 2.55 x 2.6 the pictures are enlarged by.  Looping maps
-    // scroll in RPG_RT too and stay as they are.
+    // RPG_RT's view: 20x15 tiles on the screen.  MV shows 17x13 of its
+    // 48-pixel tiles, so the screen (RM2k pixels x 2.55 x 2.6, where the
+    // pictures, screen positions and window layouts live) and the map
+    // (x 3) part ways: pictures fixed to the map drift against it, the map
+    // starts and stops scrolling elsewhere, and a small room drawn over by
+    // light and fog pictures no longer fits the screen.  So the map is
+    // drawn shrunk onto the screen by the same 2.55 x 2.6, and screen and
+    // map are one again, as in RPG_RT.
+    //
+    // The converter's --mv-view keeps MV's view for maps bigger than the
+    // RM2k screen; maps that fit it (20x15 or less, not looping) never
+    // scroll in RPG_RT and keep RPG_RT's view either way.
     //-----------------------------------------------------------------------
     var RM2K_TILES_X = 20, RM2K_TILES_Y = 15;
 
     function mapFitsRm2kScreen(map) {{
-        return !!$dataMap && map.width() <= RM2K_TILES_X && map.height() <= RM2K_TILES_Y &&
+        return map.width() <= RM2K_TILES_X && map.height() <= RM2K_TILES_Y &&
                !map.isLoopHorizontal() && !map.isLoopVertical();
     }}
 
-    // How much the map's sprites are scaled: 1 unless the map fits.
+    function usesRm2kView(map) {{
+        return !!$dataMap && (!RM2K.mvView || mapFitsRm2kScreen(map));
+    }}
+
+    // How much the map's sprites are scaled: 1 under MV's view.
     function rm2kMapZoom() {{
-        if (!mapFitsRm2kScreen($gameMap)) {{ return [1, 1]; }}
+        if (!usesRm2kView($gameMap)) {{ return [1, 1]; }}
         return [SCALE_X * 16 / $gameMap.tileWidth(), SCALE_Y * 16 / $gameMap.tileHeight()];
     }}
 
+    // MV centres the player on Graphics.width / tileWidth tiles; MZ asks
+    // screenTileX already.
+    Game_Player.prototype.centerX = function() {{
+        return ($gameMap.screenTileX() - 1) / 2;
+    }};
+
+    Game_Player.prototype.centerY = function() {{
+        return ($gameMap.screenTileY() - 1) / 2;
+    }};
+
     var _fitScreenTileX = Game_Map.prototype.screenTileX;
     Game_Map.prototype.screenTileX = function() {{
-        return mapFitsRm2kScreen(this) ? RM2K_TILES_X : _fitScreenTileX.apply(this, arguments);
+        return usesRm2kView(this) ? RM2K_TILES_X : _fitScreenTileX.apply(this, arguments);
     }};
 
     var _fitScreenTileY = Game_Map.prototype.screenTileY;
     Game_Map.prototype.screenTileY = function() {{
-        return mapFitsRm2kScreen(this) ? RM2K_TILES_Y : _fitScreenTileY.apply(this, arguments);
+        return usesRm2kView(this) ? RM2K_TILES_Y : _fitScreenTileY.apply(this, arguments);
     }};
 
     // Clicks and taps land on the shrunk map.
@@ -2608,13 +2630,49 @@ TEMPLATE = """//================================================================
         this._rm2kSpinCount = 0;
     }};
 
+    //-----------------------------------------------------------------------
+    // RPG_RT moves a character 2^(speed + 1) 256ths of a tile a frame, MV
+    // 2^speed: at the same speed MV walks half as fast, 16 frames a tile
+    // against 8 at the normal speed 4 (EasyRPG Game_Character::Update).
+    // Scenes timed against a walk - a picture slid by a parallel event
+    // while the party crosses a room - fall apart otherwise.  The steps
+    // are animated by RPG_RT's tables too: a new frame every 6 frames
+    // while walking at speed 4, every 8 for a stepping event standing
+    // still (EasyRPG GetStationaryAnimFrames, GetContinuousAnimFrames).
+    //-----------------------------------------------------------------------
+    var STEP_FRAMES_MOVING = [12, 10, 8, 6, 5, 4];
+    var STEP_FRAMES_STILL = [16, 12, 10, 8, 7, 6];
+    var SPIN_FRAMES = [24, 16, 12, 8, 6, 4];
+
+    function rm2kSpeedIndex(character) {{
+        return Math.max(1, Math.min(6, Math.round(character.realMoveSpeed()))) - 1;
+    }}
+
+    var _distancePerFrame = Game_CharacterBase.prototype.distancePerFrame;
+    Game_CharacterBase.prototype.distancePerFrame = function() {{
+        return _distancePerFrame.apply(this, arguments) * 2;
+    }};
+
+    Game_CharacterBase.prototype.animationWait = function() {{
+        var table = this.isMoving() ? STEP_FRAMES_MOVING : STEP_FRAMES_STILL;
+        return table[rm2kSpeedIndex(this)];
+    }};
+
+    // MV counts 1.5 a frame while walking; the tables above count 1.
+    var _updateAnimationCount = Game_CharacterBase.prototype.updateAnimationCount;
+    Game_CharacterBase.prototype.updateAnimationCount = function() {{
+        var before = this._animationCount;
+        _updateAnimationCount.apply(this, arguments);
+        if (this._animationCount > before) {{ this._animationCount = before + 1; }}
+    }};
+
     var SPIN_NEXT = {{2: 4, 4: 8, 8: 6, 6: 2}};
     var _eventUpdate = Game_Event.prototype.update;
     Game_Event.prototype.update = function() {{
         _eventUpdate.apply(this, arguments);
         if (this._rm2kSpin && !this.isMoving()) {{
-            // Faster movers spin faster, as in RM2k.
-            var interval = Math.max(4, 4 * (7 - this.moveSpeed()));
+            // Faster movers spin faster (EasyRPG GetSpinAnimFrames).
+            var interval = SPIN_FRAMES[rm2kSpeedIndex(this)];
             if (++this._rm2kSpinCount >= interval) {{
                 this._rm2kSpinCount = 0;
                 this.setDirection(SPIN_NEXT[this.direction()] || 2);
@@ -3158,10 +3216,17 @@ TEMPLATE = """//================================================================
         // MV knows the party striking first (initiative, surround) and
         // being caught (back attack, pincers).
         var condition = $gameTemp.rm2kBattleCondition;
+        this._rm2kCondition = 0;
         if (condition) {{
             this._preemptive = condition === 1 || condition === 3;
             this._surprise = condition === 2 || condition === 4;
             $gameTemp.rm2kBattleCondition = 0;
+            // Battlers stand where the database puts them (RPG_RT's manual
+            // placement), and there pincers become a back attack and
+            // surround becomes initiative (EasyRPG InitBattleCondition).
+            if (RM2K.rm2k3) {{
+                this._rm2kCondition = condition === 4 ? 2 : condition === 3 ? 1 : condition;
+            }}
         }}
     }};
 
@@ -3801,8 +3866,10 @@ TEMPLATE = """//================================================================
         if (this._parallaxLoopX || !bitmap || !bitmap.isReady()) {{
             return _parallaxOx.apply(this, arguments);
         }}
+        // Measured in the map's own pixels, which a zoomed map shows more of.
         return panoramaOffset(this._displayX, this.width(), this.screenTileX(),
-                              this.tileWidth(), bitmap.width, Graphics.width);
+                              this.tileWidth(), bitmap.width,
+                              Graphics.width / rm2kMapZoom()[0]);
     }};
 
     var _parallaxOy = Game_Map.prototype.parallaxOy;
@@ -3812,7 +3879,8 @@ TEMPLATE = """//================================================================
             return _parallaxOy.apply(this, arguments);
         }}
         return panoramaOffset(this._displayY, this.height(), this.screenTileY(),
-                              this.tileHeight(), bitmap.height, Graphics.height);
+                              this.tileHeight(), bitmap.height,
+                              Graphics.height / rm2kMapZoom()[1]);
     }};
 
     // Damage floors hurt by the terrain's own amount.
@@ -3960,8 +4028,83 @@ TEMPLATE = """//================================================================
     var _setActorHome = Sprite_Actor.prototype.setActorHome;
     Sprite_Actor.prototype.setActorHome = function(index) {{
         var pos = this._actor && RM2K.actorBattle && RM2K.actorBattle[this._actor.actorId()];
-        if (!pos) {{ return _setActorHome.apply(this, arguments); }}
-        this.setHome(Math.round(pos[0] * SCALE_X), Math.round(pos[1] * SCALE_Y + 72));
+        if (!pos) {{
+            _setActorHome.apply(this, arguments);
+            if (rm2kBackAttack()) {{ this.setHome(RM2K_WIDTH - this._homeX, this._homeY); }}
+        }} else {{
+            var x = rm2kBackAttack() ? 320 - pos[0] : pos[0];
+            this.setHome(Math.round(x * SCALE_X), Math.round(pos[1] * SCALE_Y + 72));
+        }}
+        // The sprite was set off screen to the right before it had a hero
+        // (moveToStartPosition); in a back attack the heroes come from the left.
+        if (rm2kBackAttack() && this._offsetX > 0) {{ this._offsetX = -this._offsetX; }}
+    }};
+
+    //-----------------------------------------------------------------------
+    // RM2003 back attack: the battle is mirrored, heroes on the left and
+    // enemies on the right (EasyRPG Calculate2k3BattlePosition).  Every
+    // battler faces the other side: a hero turns right while an enemy
+    // stands at or right of it, an enemy turns left while a hero does
+    // (EasyRPG UpdateActorsDirection, UpdateEnemiesDirection).
+    //-----------------------------------------------------------------------
+    var RM2K_WIDTH = 320 * SCALE_X;
+
+    function rm2kBackAttack() {{
+        return BattleManager._rm2kCondition === 2;
+    }}
+
+    var _enemyScreenX = Game_Enemy.prototype.screenX;
+    Game_Enemy.prototype.screenX = function() {{
+        var x = _enemyScreenX.apply(this, arguments);
+        return rm2kBackAttack() ? RM2K_WIDTH - x : x;
+    }};
+
+    function homeX(battler) {{
+        var sprite = battler.isActor() ? rm2kActorSprite(battler) : null;
+        return sprite ? sprite._homeX : battler.isEnemy() ? battler.screenX() : 0;
+    }}
+
+    function rm2kActorSprite(actor) {{
+        var spriteset = SceneManager._scene && SceneManager._scene._spriteset;
+        var sprites = spriteset && spriteset._actorSprites;
+        if (!sprites) {{ return null; }}
+        for (var i = 0; i < sprites.length; i++) {{
+            if (sprites[i]._actor === actor) {{ return sprites[i]; }}
+        }}
+        return null;
+    }}
+
+    // True when a hero looks right, or an enemy looks left: away from where
+    // RM2003 normally has it.
+    function rm2kTurned(battler, x) {{
+        var back = rm2kBackAttack();
+        var others = battler.isActor() ?
+            $gameTroop.members().filter(function(e) {{ return e.isAppeared(); }}) :
+            $gameParty.battleMembers();
+        var near = others.some(function(other) {{
+            var ox = homeX(other);
+            if (battler.isActor()) {{ return back ? ox >= x : ox <= x; }}
+            return back ? ox <= x : ox >= x;
+        }});
+        return back ? near : !near && others.length > 0;
+    }}
+
+    Sprite_Actor.prototype.rm2kTurned = function() {{
+        return !!(RM2K.rm2k3 && this._actor && $gameParty.inBattle() &&
+                  rm2kTurned(this._actor, this._homeX));
+    }};
+
+    var _actorTurnUpdate = Sprite_Actor.prototype.update;
+    Sprite_Actor.prototype.update = function() {{
+        _actorTurnUpdate.apply(this, arguments);
+        this.scale.x = this.rm2kTurned() ? -1 : 1;
+    }};
+
+    var _enemyTurnUpdate = Sprite_Enemy.prototype.update;
+    Sprite_Enemy.prototype.update = function() {{
+        _enemyTurnUpdate.apply(this, arguments);
+        var enemy = this._enemy;
+        this.scale.x = RM2K.rm2k3 && enemy && rm2kTurned(enemy, this._homeX) ? -1 : 1;
     }};
 
     // MV shows its "walk" motion whenever a hero waits for or chooses a
@@ -3969,8 +4112,10 @@ TEMPLATE = """//================================================================
     // hero actually moves: towards the enemies, or back home ("escape" is
     // the move-right pose).
     function walkMotion(sprite) {{
-        // Moving left = towards the enemies, right = back home or fleeing.
-        return sprite._targetOffsetX < sprite._offsetX ? 'walk' : 'escape';
+        // Moving left = towards the enemies, right = back home or fleeing;
+        // mirrored for a turned hero, whose sheet is drawn mirrored too.
+        var left = sprite._targetOffsetX < sprite._offsetX;
+        return left !== sprite.rm2kTurned() ? 'walk' : 'escape';
     }}
 
     var _refreshMotion = Sprite_Actor.prototype.refreshMotion;
@@ -3990,6 +4135,14 @@ TEMPLATE = """//================================================================
         if (RM2K.rm2k3 && moves && duration > 0 && this._actor && this._actor.isAlive()) {{
             this.startMotion(walkMotion(this));
         }}
+    }};
+
+    // MV moves heroes by offsets meant for enemies on the left: forward is
+    // negative, fleeing and entering positive.  A turned hero mirrors them.
+    var _turnStartMove = Sprite_Actor.prototype.startMove;
+    Sprite_Actor.prototype.startMove = function(x, y, duration) {{
+        if (this.rm2kTurned()) {{ arguments[0] = -x; }}
+        _turnStartMove.apply(this, arguments);
     }};
 
     // Remember which RM2003 command each hero picked, and who the action

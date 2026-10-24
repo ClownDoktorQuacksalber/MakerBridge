@@ -34,7 +34,8 @@ def find_template(tool_root: str, exclude=()) -> str | None:
 
 
 def convert_project(project, target: str, log, overwrite: bool = False,
-                    skip_assets: bool = False, template: str | None = None) -> None:
+                    skip_assets: bool = False, template: str | None = None,
+                    mv_view: bool = False) -> None:
     target = os.path.abspath(target)
     if os.path.isdir(target) and os.listdir(target) and not overwrite:
         raise SystemExit(
@@ -131,6 +132,8 @@ def convert_project(project, target: str, log, overwrite: bool = False,
     runtime_data["maxPictures"] = max(
         100, translator.max_picture_id,
         1000 if translator.picture_ids_from_variables else 0)
+    # RPG_RT's 20x15-tile view unless MV's own is asked for (RM2kCompat.js).
+    runtime_data["mvView"] = mv_view
     plugin.write(target, log, data=runtime_data)
     if engine:
         _stamp_title(target, data_files["System.json"].get("gameTitle") or "", log)

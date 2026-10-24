@@ -105,7 +105,8 @@ def cmd_convert(args, log) -> int:
     from .convert import convert_project
     proj = project.load(args.source, args.encoding, rtp=args.rtp)
     convert_project(proj, args.target, log, overwrite=args.overwrite,
-                    skip_assets=args.skip_assets, template=args.template)
+                    skip_assets=args.skip_assets, template=args.template,
+                    mv_view=args.mv_view)
     return 0
 
 
@@ -229,6 +230,10 @@ def build_parser(tool_root: str) -> argparse.ArgumentParser:
                         "the game does not ship (repeatable; default: the "
                         "installed RTP from the registry or RPG2K_RTP_PATH / "
                         "RPG2K3_RTP_PATH / RPG_RTP_PATH)")
+    c.add_argument("--mv-view", action="store_true",
+                   help="show MV's 17x13 tiles on big maps instead of RPG_RT's "
+                        "20x15 (bigger sprites, but pictures fixed to the map "
+                        "and the scrolling no longer match the original)")
     c.set_defaults(func=cmd_convert)
 
     v = sub.add_parser("verify", help="check a converted MV project")
