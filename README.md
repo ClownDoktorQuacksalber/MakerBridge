@@ -341,3 +341,8 @@ converted game therefore need a licence for that maker and for MZ (or MV).
 testing. To release the game, open the converted project in RPG Maker MZ and
 use File → Deployment there: the MZ licence covers games produced with the
 editor, and only the editor can encrypt the files and leave unused ones out.
+
+## Made with AI
+
+MakerBridge was developed by Clown Doktor Quacksalber with the help of
+Claude, an AI by Anthropic.
