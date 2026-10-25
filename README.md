@@ -16,6 +16,19 @@
 
 <p align="center">Created by <b>Clown Doktor Quacksalber</b> (Resan Alkoyun)</p>
 
+## Quick start — just double-click
+
+- **Windows:** double-click **`MakerBridge.bat`**.
+- **Linux / macOS:** run **`./MakerBridge.sh`** in a terminal in the folder.
+
+A window opens — no command line needed. Pick your RPG Maker 2000/2003 game,
+pick the target project, press **Convert**. On the first start MakerBridge
+offers to install whatever is missing (see [Installation](#installation--three-steps-no-programming-needed)).
+
+<p align="center">
+  <img src="docs/images/makerbridge-gui.png" alt="The MakerBridge window: choose game, destination, steps, Convert button and log" width="800">
+</p>
+
 MakerBridge reads an RPG Maker 2000 or 2003 project — the binary `.ldb`,
 `.lmt` and `.lmu` files plus its graphics and music — and writes a complete
 RPG Maker MZ project from it, ready to open in the editor or to package as a playable
